@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 from functools import partial
@@ -108,39 +107,20 @@ class MainWindow(QtWidgets.QWidget):
         print("Copy: Copied image to clipboard")
 
     def save_image(self):
-        dialog = QtWidgets.QFileDialog(self)
+        filename = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Screpo: Save Image As...",
+            filter="PNG (*.png);;JPEG (*.jpg)",
+        )
 
-        dialog.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
-        dialog.setNameFilter("Images (*.png *.jpg)")
-
-        if dialog.exec():
-            if os.path.exists(dialog.selectedFiles()[0]):
-                warn = QtWidgets.QMessageBox(self)
-                warn.setWindowTitle("Screpo: File Exists Warning")
-                warn.setText("The file you selected already exists.\nWould you like to overwrite it?")
-                warn.setIcon(QtWidgets.QMessageBox.Icon.Warning)
-                warn.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Yes |
-                                        QtWidgets.QMessageBox.StandardButton.No)
-                response = warn.exec()
-
-                if response == QtWidgets.QMessageBox.StandardButton.Yes:
-                    self.screenshots[self.currentMonitor].save(dialog.selectedFiles()[0])
-                    print(f"Save: Saved image of monitor {self.currentMonitor + 1}")
-                else:
-                    warn.close()
-                    print("Save: Operation cancelled due to existing file")
-            elif dialog.selectedFiles()[0].endswith((".png", ".jpg")):
-                self.screenshots[self.currentMonitor].save(dialog.selectedFiles()[0])
-                print(f"Save: Saved image of monitor {self.currentMonitor + 1}")
-            else:
-                warn = QtWidgets.QMessageBox(self)
-                warn.setWindowTitle("Screpo: File Extension Missing")
-                warn.setText("The path selected is missing a file extension\n"
-                             "Please manually add '.png' or '.jpg' to the end of the path")
-                warn.setIcon(QtWidgets.QMessageBox.Icon.Critical)
-
-                warn.exec()
-                print("Save: File path does not have an extension (.png or .jpg)")
+        if filename:
+            if filename == ('', ''):
+                pass
+            elif filename[0].endswith(".png" or ".jpg"):
+                self.screenshots[self.currentMonitor].save(filename[0])
+            elif "PNG" in filename[1] or "JPEG" in filename[1]:
+                self.screenshots[self.currentMonitor].save(filename[0]
+                                                           + filename[1].split("(")[1][1:-1])
 
 
 def capture_monitors() -> list[Image]:
