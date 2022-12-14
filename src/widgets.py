@@ -1,5 +1,5 @@
-import time
 import math
+import time
 from functools import partial
 
 import mss
@@ -16,13 +16,23 @@ class MainWindow(QtWidgets.QWidget):
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
         self.clipboard = clipboard
+        self.settings = None
 
         self.screenshots = utils.capture_monitors()
         self.currentMonitor = 0
 
         self.setWindowTitle("Screpo")
 
-        self.tray = QtWidgets.QSystemTrayIcon()
+        # TODO: Create an icon and set it as the tray icon here
+        self.tray = QtWidgets.QSystemTrayIcon(self)
+        # self.tray.setIcon(QtGui.QIcon(r""))
+
+        self.tray_menu = QtWidgets.QMenu()
+        self.tray_menu.addAction("Capture New Screenshot", self.update_screenshots)
+        self.tray_menu.addSeparator()
+        self.tray_menu.addAction("Exit Screpo", self.close)
+
+        self.tray.setContextMenu(self.tray_menu)
         self.tray.setVisible(True)
 
         self.imageHolder = QtWidgets.QLabel(self)
@@ -48,7 +58,11 @@ class MainWindow(QtWidgets.QWidget):
         self.copyImageButton.setShortcut(QtGui.QKeySequence("Ctrl+C"))
 
         self.copyImageMenu = QtWidgets.QMenu(self)
-        self.copyImageMenu.addAction("Copy for &Discord", self.copy_image_for_discord)
+        self.copyImageMenu.addAction(
+            QtGui.QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
+            "Copy for &Discord",
+            self.copy_image_for_discord
+        )
         self.copyImageButton.setMenu(self.copyImageMenu)
 
         self.saveImageButton = QtWidgets.QPushButton("Save Image")
@@ -57,9 +71,6 @@ class MainWindow(QtWidgets.QWidget):
 
         self.imageButtonLayout.addWidget(self.copyImageButton)
         self.imageButtonLayout.addWidget(self.saveImageButton)
-
-        self.settingsButton = QtWidgets.QPushButton("Open Settings Menu")
-        self.settingsButton.clicked.connect(self.open_settings)
 
         if len(self.screenshots) > 1:
             for mon in range(len(self.screenshots)):
@@ -70,16 +81,27 @@ class MainWindow(QtWidgets.QWidget):
 
         self.update_button_colours()
 
+        self.bottomLayout = QtWidgets.QHBoxLayout()
+
         self.getScreenshotButton = QtWidgets.QPushButton("Get &New Screenshot", self)
         self.getScreenshotButton.clicked.connect(self.update_screenshots)
 
+        self.settingsButton = QtWidgets.QPushButton("Open Settings Menu")
+        self.settingsButton.clicked.connect(self.open_settings)
+        self.settingsButton.setMaximumSize(24, 24)
+
+        [self.bottomLayout.addWidget(w) for w in [self.getScreenshotButton, self.settingsButton]]
+
         self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.imageHolder, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        self.layout.addWidget(self.imageHolder)
         self.layout.addWidget(self.windowSelector)
         if len(self.screenshots) > 1: self.layout.addLayout(self.monitorButtonLayout)
         self.layout.addLayout(self.imageButtonLayout)
-        self.layout.addWidget(self.getScreenshotButton)
-        self.layout.addWidget(self.settingsButton)
+        self.layout.addLayout(self.bottomLayout)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if self.settings:
+            self.settings.close()
 
     def switch_screenshot(self, mon):
         self.currentMonitor = mon
@@ -95,16 +117,19 @@ class MainWindow(QtWidgets.QWidget):
         self.update_button_colours()
 
     def update_screenshots(self):
-        self.window().setWindowState(Qt.WindowState.WindowMinimized)
-        time.sleep(.25)
+        if self.window().windowState() != Qt.WindowState.WindowMinimized:
+            self.window().setWindowState(Qt.WindowState.WindowMinimized)
+            time.sleep(.285)
+
         self.screenshots = utils.capture_monitors()
         self.window().setWindowState(Qt.WindowState.WindowActive)
 
-        self.imageHolder.setPixmap(QtGui.QPixmap.fromImage(self.screenshots[self.currentMonitor].toqimage()).scaled(
-            self.imageHolder.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        ))
+        self.imageHolder.setPixmap(
+            QtGui.QPixmap.fromImage(self.screenshots[self.currentMonitor].toqimage()).scaled(
+                self.imageHolder.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            ))
 
         self.update_button_colours()
 
@@ -163,9 +188,12 @@ class MainWindow(QtWidgets.QWidget):
                 print(f"Save: Saved image to {filename + filter.split('(')[1][1:-1]}")
 
     def open_settings(self):
-        settings = SettingsWindow()
+        self.settings = SettingsWindow()
 
-        settings.show()
+        self.settings.setFixedSize(self.size().toTuple()[0] // 1.5, self.size().toTuple()[1] // 3)
+        self.settings.move(self.pos())
+
+        self.settings.show()
 
 
 class SettingsTab(QtWidgets.QTabWidget):
@@ -173,6 +201,13 @@ class SettingsTab(QtWidgets.QTabWidget):
         super().__init__()
 
         self.setLayout(QtWidgets.QVBoxLayout())
+
+
+class HLine(QtWidgets.QFrame):
+    def __init__(self):
+        super(HLine, self).__init__()
+        self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
 
 class SettingsWindow(QtWidgets.QWidget):
@@ -186,9 +221,16 @@ class SettingsWindow(QtWidgets.QWidget):
         self.tabs = QtWidgets.QTabWidget(self)
 
         self.tab_general = SettingsTab()
+
+        self.tab_general__features_header = QtWidgets.QLabel("Features")
+
         self.tab_general__enable_opencv = QtWidgets.QCheckBox("Enable OpenCV features")
         self.tab_general__enable_opencv.clicked.connect(self.enable_opencv_features)
+
+        self.tab_general.layout().addWidget(self.tab_general__features_header)
+        self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(self.tab_general__enable_opencv)
+        self.tab_general.layout().addStretch(3)
 
         self.tab_opencv = SettingsTab()
 

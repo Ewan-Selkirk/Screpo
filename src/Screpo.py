@@ -1,7 +1,7 @@
 import sys
 
 from PySide6 import QtWidgets
-from PySide6.QtCore import (Qt, QPoint)
+from PySide6.QtCore import QPoint
 
 import src.widgets as widgets
 
@@ -13,13 +13,9 @@ if __name__ == "__main__":
     clipboard = app.clipboard()
 
     window = widgets.MainWindow(clipboard)
-    settings = widgets.SettingsWindow()
 
     window.setFixedSize(width, height)
     window.move(app.primaryScreen().availableGeometry().bottomRight() - QPoint(width, height))
-
-    settings.setFixedSize(width, height // 3)
-    settings.move(window.pos())
 
     # Account for the taskbar on Windows
     if app.platformName() == "windows":
