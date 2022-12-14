@@ -4,19 +4,49 @@ from functools import partial
 
 import mss
 from PySide6 import QtWidgets, QtGui
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QEvent
 
 import src.utils as utils
 
 
+class SettingsTab(QtWidgets.QTabWidget):
+    def __init__(self):
+        super().__init__()
+        self.setLayout(QtWidgets.QVBoxLayout())
+
+
+class SettingsCheckbox(QtWidgets.QCheckBox):
+    def __init__(self, *args):
+        super().__init__(*args)
+
+    # Check if the checkbox is clicked and run the save function if so.
+    # Not a fan of this method at all, should try and find some other way at some point
+    # TODO: Try and find a better way of making every SettingsCheckbox run the same function on click
+    # (Could just change it to a confirmation button...)
+    def event(self, e: QEvent) -> bool:
+        super().event(e)
+        if isinstance(e, QtGui.QMouseEvent) and e.type() is e.Type.MouseButtonRelease:
+            self.topLevelWidget().__getattribute__("settings").save()
+        return False
+
+
+class HLine(QtWidgets.QFrame):
+    def __init__(self):
+        super(HLine, self).__init__()
+        self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+
+
 class MainWindow(QtWidgets.QWidget):
-    def __init__(self, clipboard=...):
+    def __init__(self, clipboard: QtGui.QClipboard = ..., settings: utils.Settings = ...):
         super().__init__()
 
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
         self.clipboard = clipboard
-        self.settings = None
+        self.settingsObj = settings
+
+        self.settingsWidget = None
 
         self.screenshots = utils.capture_monitors()
         self.currentMonitor = 0
@@ -100,8 +130,8 @@ class MainWindow(QtWidgets.QWidget):
         self.layout.addLayout(self.bottomLayout)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        if self.settings:
-            self.settings.close()
+        if self.settingsWidget:
+            self.settingsWidget.close()
 
     def switch_screenshot(self, mon):
         self.currentMonitor = mon
@@ -188,31 +218,20 @@ class MainWindow(QtWidgets.QWidget):
                 print(f"Save: Saved image to {filename + filter.split('(')[1][1:-1]}")
 
     def open_settings(self):
-        self.settings = SettingsWindow()
+        if not self.settingsWidget:
+            self.settingsWidget = SettingsWindow(self.settingsObj)
 
-        self.settings.setFixedSize(self.size().toTuple()[0] // 1.5, self.size().toTuple()[1] // 3)
-        self.settings.move(self.pos())
+        self.settingsWidget.setFixedSize(self.size().toTuple()[0] // 1.5, self.size().toTuple()[1] // 3)
+        self.settingsWidget.move(self.pos())
 
-        self.settings.show()
-
-
-class SettingsTab(QtWidgets.QTabWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.setLayout(QtWidgets.QVBoxLayout())
-
-
-class HLine(QtWidgets.QFrame):
-    def __init__(self):
-        super(HLine, self).__init__()
-        self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
-        self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        self.settingsWidget.show()
 
 
 class SettingsWindow(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, settings: utils.Settings = ...):
         super().__init__()
+
+        self.settings = settings
 
         self.setWindowTitle("Screpo Settings")
 
@@ -224,7 +243,8 @@ class SettingsWindow(QtWidgets.QWidget):
 
         self.tab_general__features_header = QtWidgets.QLabel("Features")
 
-        self.tab_general__enable_opencv = QtWidgets.QCheckBox("Enable OpenCV features")
+        self.tab_general__enable_opencv = SettingsCheckbox("Enable OpenCV features")
+        self.tab_general__enable_opencv.setChecked(self.settings.values["general"]["features"]["enable_opencv"])
         self.tab_general__enable_opencv.clicked.connect(self.enable_opencv_features)
 
         self.tab_general.layout().addWidget(self.tab_general__features_header)
@@ -235,14 +255,18 @@ class SettingsWindow(QtWidgets.QWidget):
         self.tab_opencv = SettingsTab()
 
         self.tabs.addTab(self.tab_general, "General")
+        if self.tab_general__enable_opencv.isChecked():
+            self.tabs.insertTab(1, self.tab_opencv, "OpenCV")
 
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.tabs)
 
     def enable_opencv_features(self, value):
         if value:
-            self.tabs.addTab(self.tab_opencv, "OpenCV")
+            self.tabs.insertTab(1, self.tab_opencv, "OpenCV")
+            self.settings.values["general"]["features"]["enable_opencv"] = True
             print("Settings: Enabled OpenCV features")
         else:
             self.tabs.removeTab(self.tabs.indexOf(self.tab_opencv))
+            self.settings.values["general"]["features"]["enable_opencv"] = False
             print("Settings: Disabled OpenCV features")
