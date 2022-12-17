@@ -30,6 +30,50 @@ class SettingsCheckbox(QtWidgets.QCheckBox):
         return False
 
 
+class ScreenshotCarouselButton(QtWidgets.QRadioButton):
+    def __init__(self, value):
+        super().__init__()
+
+        self.value = value
+        self.time = time.time()
+
+        self.setFixedSize(18, 18)
+        self.setText("")
+
+        self.setToolTip(time.strftime("%H:%M:%S - %D"))
+
+    def event(self, e: QEvent) -> bool:
+        super().event(e)
+        if isinstance(e, QtGui.QMouseEvent) and e.type() is e.Type.MouseButtonRelease:
+            print("Button Pressed:", self.value)
+        return False
+
+
+class ScreenshotCarouselGroup(QtWidgets.QHBoxLayout):
+    def __init__(self):
+        super().__init__()
+
+        self.__buttonList: list[ScreenshotCarouselButton] = []
+
+        self.layout().addSpacerItem(QtWidgets.QSpacerItem(40, 0, QtWidgets.QSizePolicy.Policy.Expanding,
+                                                          QtWidgets.QSizePolicy.Policy.Fixed))
+        self.update_widget()
+        self.layout().addSpacerItem(QtWidgets.QSpacerItem(40, 0, QtWidgets.QSizePolicy.Policy.Expanding,
+                                                          QtWidgets.QSizePolicy.Policy.Fixed))
+
+    def add_new_button(self):
+        self.__buttonList.append(ScreenshotCarouselButton(len(self.__buttonList)))
+        self.set_checked(len(self.__buttonList) - 1)
+        self.update_widget()
+
+    def update_widget(self):
+        [self.layout().addWidget(b) for b in self.__buttonList]
+
+    def set_checked(self, index):
+        for i, b in enumerate(self.__buttonList):
+            b.setChecked(True if i == index else False)
+
+
 class HLine(QtWidgets.QFrame):
     def __init__(self):
         super(HLine, self).__init__()
@@ -65,8 +109,17 @@ class MainWindow(QtWidgets.QWidget):
         self.tray.setContextMenu(self.tray_menu)
         self.tray.setVisible(True)
 
+        self.imageAndButtons = QtWidgets.QVBoxLayout()
+
         self.imageHolder = QtWidgets.QLabel(self)
         self.imageHolder.setFixedSize(525, 525)
+
+        self.imageSwitcher = ScreenshotCarouselGroup()
+
+        self.imageAndButtons.addWidget(self.imageHolder)
+        self.imageAndButtons.addWidget(QtWidgets.QLabel("History"))
+        self.imageAndButtons.addWidget(HLine())
+        self.imageAndButtons.addLayout(self.imageSwitcher)
 
         with mss.mss() as sct:
             self.windowOptions = {i: [f"{''.join(['Monitor ', str(i + 1) + ': ']) if len(sct.monitors[1:]) > 1 else ''}"
@@ -123,7 +176,7 @@ class MainWindow(QtWidgets.QWidget):
         [self.bottomLayout.addWidget(w) for w in [self.getScreenshotButton, self.settingsButton]]
 
         self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(self.imageHolder)
+        self.layout.addLayout(self.imageAndButtons)
         self.layout.addWidget(self.windowSelector)
         if len(self.screenshots) > 1: self.layout.addLayout(self.monitorButtonLayout)
         self.layout.addLayout(self.imageButtonLayout)
@@ -162,6 +215,7 @@ class MainWindow(QtWidgets.QWidget):
             ))
 
         self.update_button_colours()
+        self.imageSwitcher.add_new_button()
 
     def update_button_colours(self):
         if len(self.screenshots) > 1:

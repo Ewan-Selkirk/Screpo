@@ -13,8 +13,9 @@ class Settings:
         if not self.load():
             self.create()
 
-    def create(self):
-        default_settings = {
+    @staticmethod
+    def get_default_settings() -> dict:
+        return {
             "general": {
                 "features": {
                     "enable_opencv": False
@@ -25,9 +26,10 @@ class Settings:
             }
         }
 
-        self.values = default_settings
+    def create(self):
+        self.values = self.get_default_settings()
         print("Settings: No settings file found. Creating a new one")
-        self.save(default_settings)
+        self.save()
 
     def load(self) -> bool:
         if os.path.exists(expanduser("~") + r"/.screpo"):
