@@ -32,10 +32,12 @@ class Utils:
 
 class Settings:
     def __init__(self):
-        self.values = ...
+        self.values: dict = ...
 
         if not self.load():
             self.create()
+        else:
+            self.check()
 
     @staticmethod
     def get_default_settings() -> dict:
@@ -76,3 +78,30 @@ class Settings:
             json.dump(data, f)
 
         print(f"Settings: Saved data to {expanduser('~') + r'/.screpo'}")
+
+    def check(self):
+        # This will cause issues say if a setting is removed while another is added
+        # TODO: Switch from using the length as the condition
+        if nested_dict_len(self.values) < nested_dict_len(self.get_default_settings()):
+            self.values.update({k: v for k, v in self.get_default_settings().items() if k not in self.values.keys()})
+
+            for k, v in self.get_default_settings().items():
+                self.values[k].update({nk: nv for nk, nv in self.get_default_settings()[k].items()
+                                       if nk not in self.values[k].keys()})
+                for k2, v2 in self.get_default_settings()[k].items():
+                    self.values[k][k2].update({nk: nv for nk, nv in self.get_default_settings()[k][k2].items()
+                                               if nk not in self.values[k][k2].keys()})
+
+            self.save()
+            print("Settings: Successfully mitigated new settings over to old save file")
+
+
+# Stolen from Example 2 on GeeksForGeeks
+# https://www.geeksforgeeks.org/get-length-of-dictionary-in-python/
+def nested_dict_len(d):
+    length = len(d)
+    for key, value in d.items():
+        if isinstance(value, dict):
+            length += nested_dict_len(value)
+    return length
+
