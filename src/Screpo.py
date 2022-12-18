@@ -4,7 +4,7 @@ from PySide6 import QtWidgets
 from PySide6.QtCore import QPoint
 
 import src.widgets as widgets
-import src.utils as utils
+from src.utils import Utils
 
 width, height = (550, 675)
 
@@ -13,10 +13,11 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication([])
     clipboard = app.clipboard()
 
-    settings = utils.Settings()
+    utils = Utils(app)
+    if len(utils.monitors) > 1:
+        height += 45
 
-    window = widgets.MainWindow(clipboard, settings)
-
+    window = widgets.MainWindow(utils)
     window.setFixedSize(width, height)
     window.move(app.primaryScreen().availableGeometry().bottomRight() - QPoint(width, height))
 

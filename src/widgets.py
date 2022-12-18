@@ -6,7 +6,7 @@ import mss
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt, QEvent
 
-import src.utils as utils
+from src.utils import Utils
 
 
 class SettingsTab(QtWidgets.QTabWidget):
@@ -26,7 +26,7 @@ class SettingsCheckbox(QtWidgets.QCheckBox):
     def event(self, e: QEvent) -> bool:
         super().event(e)
         if isinstance(e, QtGui.QMouseEvent) and e.type() is e.Type.MouseButtonRelease:
-            self.topLevelWidget().__getattribute__("settings").save()
+            self.topLevelWidget().__getattribute__("utils").settings.save()
         return False
 
 
@@ -63,8 +63,8 @@ class ScreenshotCarouselGroup(QtWidgets.QHBoxLayout):
 
     def add_new_button(self):
         self.__buttonList.append(ScreenshotCarouselButton(len(self.__buttonList)))
-        self.set_checked(len(self.__buttonList) - 1)
         self.update_widget()
+        self.set_checked(len(self.__buttonList) - 1)
 
     def update_widget(self):
         [self.layout().addWidget(b) for b in self.__buttonList]
@@ -82,17 +82,19 @@ class HLine(QtWidgets.QFrame):
 
 
 class MainWindow(QtWidgets.QWidget):
-    def __init__(self, clipboard: QtGui.QClipboard = ..., settings: utils.Settings = ...):
+    def __init__(self, utils: Utils = ...):
         super().__init__()
 
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
-        self.clipboard = clipboard
-        self.settingsObj = settings
+        self.clipboard = utils.clipboard
+
+        self.utils = utils
+        self.settingsObj = self.utils.settings
 
         self.settingsWidget = None
 
-        self.screenshots = utils.capture_monitors()
+        self.screenshots = self.utils.capture_monitors()
         self.currentMonitor = 0
 
         self.setWindowTitle("Screpo")
@@ -142,6 +144,7 @@ class MainWindow(QtWidgets.QWidget):
 
         self.copyImageMenu = QtWidgets.QMenu(self)
         self.copyImageMenu.addAction(
+            # TODO: Fix this icon for Windows (will likely require compiling a QRC file)
             QtGui.QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
             "Copy for &Discord",
             self.copy_image_for_discord
@@ -204,7 +207,7 @@ class MainWindow(QtWidgets.QWidget):
             self.window().setWindowState(Qt.WindowState.WindowMinimized)
             time.sleep(.285)
 
-        self.screenshots = utils.capture_monitors()
+        self.screenshots = self.utils.capture_monitors()
         self.window().setWindowState(Qt.WindowState.WindowActive)
 
         self.imageHolder.setPixmap(
@@ -273,7 +276,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def open_settings(self):
         if not self.settingsWidget:
-            self.settingsWidget = SettingsWindow(self.settingsObj)
+            self.settingsWidget = SettingsWindow(self.utils)
 
         self.settingsWidget.setFixedSize(self.size().toTuple()[0] // 1.5, self.size().toTuple()[1] // 3)
         self.settingsWidget.move(self.pos())
@@ -282,10 +285,11 @@ class MainWindow(QtWidgets.QWidget):
 
 
 class SettingsWindow(QtWidgets.QWidget):
-    def __init__(self, settings: utils.Settings = ...):
+    def __init__(self, utils: Utils = ...):
         super().__init__()
 
-        self.settings = settings
+        self.utils = utils
+        self.settings = utils.settings
 
         self.setWindowTitle("Screpo Settings")
 

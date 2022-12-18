@@ -1,9 +1,33 @@
-import os.path
 import json
-from os.path import expanduser
+from os.path import expanduser, exists
 
 import mss
 from PIL import Image
+from PySide6.QtGui import QGuiApplication
+
+
+class Utils:
+    def __init__(self, app: QGuiApplication = ...):
+        self.app_ref = app
+        self.clipboard = app.clipboard()
+
+        self.settings = Settings()
+        self.monitors = None
+
+        with mss.mss() as mons:
+            self.monitors = mons.monitors[1:]
+
+    def capture_monitors(self) -> list[Image]:
+        shots = []
+
+        with mss.mss() as sct:
+            for mon in self.monitors:
+                shot = sct.grab(mon)
+                img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
+
+                shots.append(img)
+
+        return shots
 
 
 class Settings:
@@ -32,7 +56,7 @@ class Settings:
         self.save()
 
     def load(self) -> bool:
-        if os.path.exists(expanduser("~") + r"/.screpo"):
+        if exists(expanduser("~") + r"/.screpo"):
             try:
                 with open(expanduser("~") + r"/.screpo", "r") as f:
                     self.values = json.load(f)
@@ -52,16 +76,3 @@ class Settings:
             json.dump(data, f)
 
         print(f"Settings: Saved data to {expanduser('~') + r'/.screpo'}")
-
-
-def capture_monitors() -> list[Image]:
-    shots = []
-
-    with mss.mss() as sct:
-        for mon in sct.monitors[1:]:
-            shot = sct.grab(mon)
-            img = Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
-
-            shots.append(img)
-
-    return shots
