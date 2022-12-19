@@ -6,13 +6,20 @@ from PIL import Image
 from PySide6.QtGui import QGuiApplication
 
 
+VERSION = "0.0.5"
+BUILD = "Dev"
+
+
 class Utils:
     def __init__(self, app: QGuiApplication = ...):
+        self.version = VERSION
+        self.build = BUILD
+
         self.app_ref = app
         self.clipboard = app.clipboard()
+        self.history = {}
 
         self.settings = Settings()
-        self.monitors = None
 
         with mss.mss() as mons:
             self.monitors = mons.monitors[1:]
@@ -27,6 +34,13 @@ class Utils:
 
                 shots.append(img)
 
+        if len(self.history) > self.settings.values["general"]["performance"]["history_max_items"]:
+            del self.history[list(self.history.keys())[0]]
+
+        if len(self.history):
+            self.history[list(self.history.keys())[-1] + 1] = shots
+        else:
+            self.history[0] = shots
         return shots
 
 
@@ -45,6 +59,9 @@ class Settings:
             "general": {
                 "features": {
                     "enable_opencv": False
+                },
+                "performance": {
+                    "history_max_items": 8
                 }
             },
             "opencv": {

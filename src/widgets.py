@@ -30,6 +30,26 @@ class SettingsCheckbox(QtWidgets.QCheckBox):
         return False
 
 
+class SettingsSpinBox(QtWidgets.QHBoxLayout):
+    def __init__(self, title: str = ..., utils: Utils = ..., keys: tuple | list = ...):
+        super().__init__()
+
+        self.keys = keys
+        tab, category, option = keys
+
+        self.title = QtWidgets.QLabel(title)
+        self.spinBox = QtWidgets.QSpinBox()
+
+        self.spinBox.setMinimum(1)
+        self.spinBox.setValue(utils.settings.values[tab][category][option])
+        self.spinBox.setMinimumWidth(80)
+
+        self.layout().addWidget(self.title)
+        self.layout().addSpacerItem(QtWidgets.QSpacerItem(20, 0, QtWidgets.QSizePolicy.Policy.Expanding,
+                                                          QtWidgets.QSizePolicy.Policy.Fixed))
+        self.layout().addWidget(self.spinBox)
+
+
 class ScreenshotCarouselButton(QtWidgets.QRadioButton):
     def __init__(self, value):
         super().__init__()
@@ -45,7 +65,8 @@ class ScreenshotCarouselButton(QtWidgets.QRadioButton):
     def event(self, e: QEvent) -> bool:
         super().event(e)
         if isinstance(e, QtGui.QMouseEvent) and e.type() is e.Type.MouseButtonRelease:
-            print("Button Pressed:", self.value)
+            print(f"Button Pressed: {self.value}")
+            self.parentWidget().topLevelWidget().goto_in_history(self.value)
         return False
 
 
@@ -54,6 +75,7 @@ class ScreenshotCarouselGroup(QtWidgets.QHBoxLayout):
         super().__init__()
 
         self.__buttonList: list[ScreenshotCarouselButton] = []
+        self.__buttonIndex = 0
 
         self.layout().addSpacerItem(QtWidgets.QSpacerItem(40, 0, QtWidgets.QSizePolicy.Policy.Expanding,
                                                           QtWidgets.QSizePolicy.Policy.Fixed))
@@ -61,8 +83,13 @@ class ScreenshotCarouselGroup(QtWidgets.QHBoxLayout):
         self.layout().addSpacerItem(QtWidgets.QSpacerItem(40, 0, QtWidgets.QSizePolicy.Policy.Expanding,
                                                           QtWidgets.QSizePolicy.Policy.Fixed))
 
-    def add_new_button(self):
-        self.__buttonList.append(ScreenshotCarouselButton(len(self.__buttonList)))
+    def add_new_button(self, max_btns):
+        self.__buttonList.append(ScreenshotCarouselButton(self.__buttonIndex))
+        self.__buttonIndex += 1
+
+        if len(self.__buttonList) > max_btns:
+            self.layout().removeWidget(self.__buttonList[0])
+            del self.__buttonList[0]
         self.update_widget()
         self.set_checked(len(self.__buttonList) - 1)
 
@@ -79,6 +106,11 @@ class HLine(QtWidgets.QFrame):
         super(HLine, self).__init__()
         self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
         self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+
+
+class CategorySpacer(QtWidgets.QSpacerItem):
+    def __init__(self):
+        super().__init__(0, 24, QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
 
 
 class MainWindow(QtWidgets.QWidget):
@@ -181,7 +213,7 @@ class MainWindow(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addLayout(self.imageAndButtons)
         self.layout.addWidget(self.windowSelector)
-        if len(self.screenshots) > 1: self.layout.addLayout(self.monitorButtonLayout)
+        if len(self.utils.monitors) > 1: self.layout.addLayout(self.monitorButtonLayout)
         self.layout.addLayout(self.imageButtonLayout)
         self.layout.addLayout(self.bottomLayout)
 
@@ -189,13 +221,18 @@ class MainWindow(QtWidgets.QWidget):
         if self.settingsWidget:
             self.settingsWidget.close()
 
+    def update_current_screenshot(self):
+        self.imageHolder.setPixmap(
+            QtGui.QPixmap.fromImage(self.screenshots[self.currentMonitor].toqimage()).scaled(
+                self.imageHolder.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+        )
+
     def switch_screenshot(self, mon):
         self.currentMonitor = mon
-        self.imageHolder.setPixmap(QtGui.QPixmap.fromImage(self.screenshots[mon].toqimage()).scaled(
-            self.imageHolder.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        ))
+        self.update_current_screenshot()
 
         self.windowSelector.clear()
         self.windowSelector.addItems(self.windowOptions[mon])
@@ -210,15 +247,14 @@ class MainWindow(QtWidgets.QWidget):
         self.screenshots = self.utils.capture_monitors()
         self.window().setWindowState(Qt.WindowState.WindowActive)
 
-        self.imageHolder.setPixmap(
-            QtGui.QPixmap.fromImage(self.screenshots[self.currentMonitor].toqimage()).scaled(
-                self.imageHolder.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            ))
+        self.update_current_screenshot()
 
         self.update_button_colours()
-        self.imageSwitcher.add_new_button()
+        self.imageSwitcher.add_new_button(self.utils.settings.values["general"]["performance"]["history_max_items"])
+
+    def goto_in_history(self, pos):
+        self.screenshots = self.utils.history[pos].copy()
+        self.update_current_screenshot()
 
     def update_button_colours(self):
         if len(self.screenshots) > 1:
@@ -278,7 +314,7 @@ class MainWindow(QtWidgets.QWidget):
         if not self.settingsWidget:
             self.settingsWidget = SettingsWindow(self.utils)
 
-        self.settingsWidget.setFixedSize(self.size().toTuple()[0] // 1.5, self.size().toTuple()[1] // 3)
+        self.settingsWidget.setFixedSize(self.size().toTuple()[0], self.size().toTuple()[1] // 2)
         self.settingsWidget.move(self.pos())
 
         self.settingsWidget.show()
@@ -305,9 +341,20 @@ class SettingsWindow(QtWidgets.QWidget):
         self.tab_general__enable_opencv.setChecked(self.settings.values["general"]["features"]["enable_opencv"])
         self.tab_general__enable_opencv.clicked.connect(self.enable_opencv_features)
 
+        self.tab_general__performance_header = QtWidgets.QLabel("Performance")
+
+        self.tab_general__max_history_items = SettingsSpinBox("Max History Items", self.utils,
+                                                              ("general", "performance", "history_max_items"))
+        self.tab_general__max_history_items.spinBox.valueChanged.connect(
+            partial(self.change_spinbox_value, self.tab_general__max_history_items.keys))
+
         self.tab_general.layout().addWidget(self.tab_general__features_header)
         self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(self.tab_general__enable_opencv)
+        self.tab_general.layout().addSpacerItem(CategorySpacer())
+        self.tab_general.layout().addWidget(self.tab_general__performance_header)
+        self.tab_general.layout().addWidget(HLine())
+        self.tab_general.layout().addLayout(self.tab_general__max_history_items)
         self.tab_general.layout().addStretch(3)
 
         self.tab_opencv = SettingsTab()
@@ -316,8 +363,15 @@ class SettingsWindow(QtWidgets.QWidget):
         if self.tab_general__enable_opencv.isChecked():
             self.tabs.insertTab(1, self.tab_opencv, "OpenCV")
 
+        self.footer = QtWidgets.QHBoxLayout()
+        self.footer.addSpacerItem(QtWidgets.QSpacerItem(100, 0, QtWidgets.QSizePolicy.Policy.Expanding,
+                                                        QtWidgets.QSizePolicy.Policy.Fixed))
+        self.footer.addWidget(QtWidgets.QLabel(f"Version {utils.version} ({utils.build}) "
+                                               f"[{utils.app_ref.platformName()}]"))
+
         self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.addWidget(self.tabs)
+        self.layout.addLayout(self.footer)
 
     def enable_opencv_features(self, value):
         if value:
@@ -328,3 +382,7 @@ class SettingsWindow(QtWidgets.QWidget):
             self.tabs.removeTab(self.tabs.indexOf(self.tab_opencv))
             self.settings.values["general"]["features"]["enable_opencv"] = False
             print("Settings: Disabled OpenCV features")
+
+    def change_spinbox_value(self, keys: tuple | list, value):
+        self.settings.values[keys[0]][keys[1]][keys[2]] = value
+        self.settings.save()
