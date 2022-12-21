@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButto
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
                                QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox)
 
-from src.utils import Utils
+from src.utils import *
 
 
 class SettingsTab(QTabWidget):
