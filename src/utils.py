@@ -104,8 +104,9 @@ class Settings:
                 self.values[k].update({nk: nv for nk, nv in self.get_default_settings()[k].items()
                                        if nk not in self.values[k].keys()})
                 for k2, v2 in self.get_default_settings()[k].items():
-                    self.values[k][k2].update({nk: nv for nk, nv in self.get_default_settings()[k][k2].items()
-                                               if nk not in self.values[k][k2].keys()})
+                    if isinstance(v2, dict):
+                        self.values[k][k2].update({nk: nv for nk, nv in self.get_default_settings()[k][k2].items()
+                                                   if nk not in self.values[k][k2].keys()})
 
             self.save()
             print("Settings: Successfully mitigated new settings over to old save file")
