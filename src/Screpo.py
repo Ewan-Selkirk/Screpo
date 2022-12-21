@@ -10,7 +10,7 @@ width, height = (550, 675)
 
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication(sys.argv)
     clipboard = app.clipboard()
 
     utils = Utils(app)

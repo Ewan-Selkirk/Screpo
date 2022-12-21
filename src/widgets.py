@@ -5,17 +5,20 @@ from functools import partial
 import mss
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt, QEvent
+from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
+                               QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
+                               QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox)
 
 from src.utils import Utils
 
 
-class SettingsTab(QtWidgets.QTabWidget):
+class SettingsTab(QTabWidget):
     def __init__(self):
         super().__init__()
-        self.setLayout(QtWidgets.QVBoxLayout())
+        self.setLayout(QVBoxLayout())
 
 
-class SettingsCheckbox(QtWidgets.QCheckBox):
+class SettingsCheckbox(QCheckBox):
     def __init__(self, *args):
         super().__init__(*args)
 
@@ -30,27 +33,26 @@ class SettingsCheckbox(QtWidgets.QCheckBox):
         return False
 
 
-class SettingsSpinBox(QtWidgets.QHBoxLayout):
+class SettingsSpinBox(QHBoxLayout):
     def __init__(self, title: str = ..., utils: Utils = ..., keys: tuple | list = ...):
         super().__init__()
 
         self.keys = keys
         tab, category, option = keys
 
-        self.title = QtWidgets.QLabel(title)
-        self.spinBox = QtWidgets.QSpinBox()
+        self.title = QLabel(title)
+        self.spinBox = QSpinBox()
 
         self.spinBox.setMinimum(1)
         self.spinBox.setValue(utils.settings.values[tab][category][option])
         self.spinBox.setMinimumWidth(80)
 
         self.layout().addWidget(self.title)
-        self.layout().addSpacerItem(QtWidgets.QSpacerItem(20, 0, QtWidgets.QSizePolicy.Policy.Expanding,
-                                                          QtWidgets.QSizePolicy.Policy.Fixed))
+        self.layout().addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
         self.layout().addWidget(self.spinBox)
 
 
-class ScreenshotCarouselButton(QtWidgets.QRadioButton):
+class ScreenshotCarouselButton(QRadioButton):
     def __init__(self, value):
         super().__init__()
 
@@ -70,18 +72,16 @@ class ScreenshotCarouselButton(QtWidgets.QRadioButton):
         return False
 
 
-class ScreenshotCarouselGroup(QtWidgets.QHBoxLayout):
+class ScreenshotCarouselGroup(QHBoxLayout):
     def __init__(self):
         super().__init__()
 
         self.__buttonList: list[ScreenshotCarouselButton] = []
         self.__buttonIndex = 0
 
-        self.layout().addSpacerItem(QtWidgets.QSpacerItem(40, 0, QtWidgets.QSizePolicy.Policy.Expanding,
-                                                          QtWidgets.QSizePolicy.Policy.Fixed))
+        self.layout().addSpacerItem(QSpacerItem(40, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
         self.update_widget()
-        self.layout().addSpacerItem(QtWidgets.QSpacerItem(40, 0, QtWidgets.QSizePolicy.Policy.Expanding,
-                                                          QtWidgets.QSizePolicy.Policy.Fixed))
+        self.layout().addSpacerItem(QSpacerItem(40, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
 
     def add_new_button(self, max_btns):
         self.__buttonList.append(ScreenshotCarouselButton(self.__buttonIndex))
@@ -101,11 +101,11 @@ class ScreenshotCarouselGroup(QtWidgets.QHBoxLayout):
             b.setChecked(True if i == index else False)
 
 
-class HLine(QtWidgets.QFrame):
+class HLine(QFrame):
     def __init__(self):
         super(HLine, self).__init__()
-        self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
-        self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        self.setFrameShape(QFrame.Shape.HLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
 
 
 class CategorySpacer(QtWidgets.QSpacerItem):
@@ -113,7 +113,7 @@ class CategorySpacer(QtWidgets.QSpacerItem):
         super().__init__(0, 24, QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
 
 
-class MainWindow(QtWidgets.QWidget):
+class MainWindow(QWidget):
     def __init__(self, utils: Utils = ...):
         super().__init__()
 
@@ -126,16 +126,16 @@ class MainWindow(QtWidgets.QWidget):
 
         self.settingsWidget = None
 
-        self.screenshots = self.utils.capture_monitors()
+        self.screenshots = []
         self.currentMonitor = 0
 
         self.setWindowTitle("Screpo")
 
         # TODO: Create an icon and set it as the tray icon here
-        self.tray = QtWidgets.QSystemTrayIcon(self)
+        self.tray = QSystemTrayIcon(self)
         # self.tray.setIcon(QtGui.QIcon(r""))
 
-        self.tray_menu = QtWidgets.QMenu()
+        self.tray_menu = QMenu()
         self.tray_menu.addAction("Capture New Screenshot", self.update_screenshots)
         self.tray_menu.addSeparator()
         self.tray_menu.addAction("Exit Screpo", self.close)
@@ -143,38 +143,37 @@ class MainWindow(QtWidgets.QWidget):
         self.tray.setContextMenu(self.tray_menu)
         self.tray.setVisible(True)
 
-        self.imageAndButtons = QtWidgets.QVBoxLayout()
+        self.imageAndButtons = QVBoxLayout()
 
-        self.imageHolder = QtWidgets.QLabel(self)
+        self.imageHolder = QLabel(self)
         self.imageHolder.setFixedSize(525, 525)
 
         self.imageSwitcher = ScreenshotCarouselGroup()
 
         self.imageAndButtons.addWidget(self.imageHolder)
-        self.imageAndButtons.addWidget(QtWidgets.QLabel("History"))
+        self.imageAndButtons.addWidget(QLabel("History"))
         self.imageAndButtons.addWidget(HLine())
         self.imageAndButtons.addLayout(self.imageSwitcher)
 
         with mss.mss() as sct:
             self.windowOptions = {i: [f"{''.join(['Monitor ', str(i + 1) + ': ']) if len(sct.monitors[1:]) > 1 else ''}"
                                       f"Whole Monitor"] for i in range(len(sct.monitors[1:]))}
-        self.windowSelector = QtWidgets.QComboBox(self)
+        self.windowSelector = QComboBox(self)
         self.windowSelector.addItems(self.windowOptions[0])
 
-        self.monitorButtonLayout = QtWidgets.QHBoxLayout()
+        self.monitorButtonLayout = QHBoxLayout()
         self.update_screenshots()
 
-        self.imageButtonLayout = QtWidgets.QHBoxLayout()
-        self.copyImageButton = QtWidgets.QToolButton(self)
-        self.copyImageButton.setPopupMode(QtWidgets.QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-        self.copyImageButton.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum,
-                                                                 QtWidgets.QSizePolicy.Policy.Maximum))
+        self.imageButtonLayout = QHBoxLayout()
+        self.copyImageButton = QToolButton(self)
+        self.copyImageButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.copyImageButton.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum))
         self.copyImageButton.setMinimumSize(0, 24)
         self.copyImageButton.setText("Copy Image")
         self.copyImageButton.clicked.connect(self.copy_image)
         self.copyImageButton.setShortcut(QtGui.QKeySequence("Ctrl+C"))
 
-        self.copyImageMenu = QtWidgets.QMenu(self)
+        self.copyImageMenu = QMenu(self)
         self.copyImageMenu.addAction(
             # TODO: Fix this icon for Windows (will likely require compiling a QRC file)
             QtGui.QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
@@ -183,7 +182,7 @@ class MainWindow(QtWidgets.QWidget):
         )
         self.copyImageButton.setMenu(self.copyImageMenu)
 
-        self.saveImageButton = QtWidgets.QPushButton("Save Image")
+        self.saveImageButton = QPushButton("Save Image")
         self.saveImageButton.clicked.connect(self.save_image)
         self.saveImageButton.setShortcut(QtGui.QKeySequence("Ctrl+S"))
 
@@ -192,25 +191,25 @@ class MainWindow(QtWidgets.QWidget):
 
         if len(self.screenshots) > 1:
             for mon in range(len(self.screenshots)):
-                btn = QtWidgets.QPushButton(f"Monitor &{mon + 1}", self)
+                btn = QPushButton(f"Monitor &{mon + 1}", self)
                 btn.clicked.connect(partial(self.switch_screenshot, mon))
 
                 self.monitorButtonLayout.layout().addWidget(btn)
 
         self.update_button_colours()
 
-        self.bottomLayout = QtWidgets.QHBoxLayout()
+        self.bottomLayout = QHBoxLayout()
 
-        self.getScreenshotButton = QtWidgets.QPushButton("Get &New Screenshot", self)
+        self.getScreenshotButton = QPushButton("Get &New Screenshot", self)
         self.getScreenshotButton.clicked.connect(self.update_screenshots)
 
-        self.settingsButton = QtWidgets.QPushButton("Open Settings Menu")
+        self.settingsButton = QPushButton("Open Settings Menu")
         self.settingsButton.clicked.connect(self.open_settings)
         self.settingsButton.setMaximumSize(24, 24)
 
         [self.bottomLayout.addWidget(w) for w in [self.getScreenshotButton, self.settingsButton]]
 
-        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout = QVBoxLayout(self)
         self.layout.addLayout(self.imageAndButtons)
         self.layout.addWidget(self.windowSelector)
         if len(self.utils.monitors) > 1: self.layout.addLayout(self.monitorButtonLayout)
@@ -223,11 +222,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def update_current_screenshot(self):
         self.imageHolder.setPixmap(
-            QtGui.QPixmap.fromImage(self.screenshots[self.currentMonitor].toqimage()).scaled(
-                self.imageHolder.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
+            image_to_pixmap(self.screenshots[self.currentMonitor], self.imageHolder)
         )
 
     def switch_screenshot(self, mon):
@@ -294,7 +289,7 @@ class MainWindow(QtWidgets.QWidget):
             print("Copy: Clipboard reference missing")
 
     def save_image(self):
-        filename, filter = QtWidgets.QFileDialog.getSaveFileName(
+        filename, filter = QFileDialog.getSaveFileName(
             self,
             "Screpo: Save Image As...",
             filter="PNG (*.png);;JPEG (*.jpg)",
@@ -320,7 +315,8 @@ class MainWindow(QtWidgets.QWidget):
         self.settingsWidget.show()
 
 
-class SettingsWindow(QtWidgets.QWidget):
+
+class SettingsWindow(QWidget):
     def __init__(self, utils: Utils = ...):
         super().__init__()
 
@@ -331,17 +327,17 @@ class SettingsWindow(QtWidgets.QWidget):
 
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
-        self.tabs = QtWidgets.QTabWidget(self)
+        self.tabs = QTabWidget(self)
 
         self.tab_general = SettingsTab()
 
-        self.tab_general__features_header = QtWidgets.QLabel("Features")
+        self.tab_general__features_header = QLabel("Features")
 
         self.tab_general__enable_opencv = SettingsCheckbox("Enable OpenCV features")
         self.tab_general__enable_opencv.setChecked(self.settings.values["general"]["features"]["enable_opencv"])
         self.tab_general__enable_opencv.clicked.connect(self.enable_opencv_features)
 
-        self.tab_general__performance_header = QtWidgets.QLabel("Performance")
+        self.tab_general__performance_header = QLabel("Performance")
 
         self.tab_general__max_history_items = SettingsSpinBox("Max History Items", self.utils,
                                                               ("general", "performance", "history_max_items"))
@@ -363,13 +359,11 @@ class SettingsWindow(QtWidgets.QWidget):
         if self.tab_general__enable_opencv.isChecked():
             self.tabs.insertTab(1, self.tab_opencv, "OpenCV")
 
-        self.footer = QtWidgets.QHBoxLayout()
-        self.footer.addSpacerItem(QtWidgets.QSpacerItem(100, 0, QtWidgets.QSizePolicy.Policy.Expanding,
-                                                        QtWidgets.QSizePolicy.Policy.Fixed))
-        self.footer.addWidget(QtWidgets.QLabel(f"Version {utils.version} ({utils.build}) "
-                                               f"[{utils.app_ref.platformName()}]"))
+        self.footer = QHBoxLayout()
+        self.footer.addSpacerItem(QSpacerItem(100, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
+        self.footer.addWidget(QLabel(f"Version {utils.version} ({utils.build}) [{utils.app_ref.platformName()}]"))
 
-        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.tabs)
         self.layout.addLayout(self.footer)
 

@@ -3,8 +3,9 @@ from os.path import expanduser, exists
 
 import mss
 from PIL import Image
-from PySide6.QtGui import QGuiApplication
-
+from PySide6 import QtWidgets
+from PySide6.QtGui import QGuiApplication, Qt, QPixmap
+from PySide6.QtCore import QSize
 
 VERSION = "0.0.5"
 BUILD = "Dev"
@@ -38,9 +39,9 @@ class Utils:
             del self.history[list(self.history.keys())[0]]
 
         if len(self.history):
-            self.history[list(self.history.keys())[-1] + 1] = shots
+            self.history[list(self.history.keys())[-1] + 1] = shots.copy()
         else:
-            self.history[0] = shots
+            self.history[0] = shots.copy()
         return shots
 
 
@@ -87,12 +88,9 @@ class Settings:
         else:
             return False
 
-    def save(self, data: dict = ...):
-        if data is Ellipsis:
-            data = self.values
-
+    def save(self):
         with open(expanduser("~") + r"/.screpo", "w") as f:
-            json.dump(data, f)
+            json.dump(self.values, f)
 
         print(f"Settings: Saved data to {expanduser('~') + r'/.screpo'}")
 
@@ -122,3 +120,12 @@ def nested_dict_len(d):
             length += nested_dict_len(value)
     return length
 
+
+def image_to_pixmap(image: Image, label: QtWidgets.QLabel, offset: QSize = QSize(0, 0),
+                    aspect: Qt.AspectRatioMode = Qt.AspectRatioMode.KeepAspectRatio,
+                    transform: Qt.TransformationMode = Qt.TransformationMode.SmoothTransformation) -> QPixmap:
+    return QPixmap.fromImage(image.toqimage()).scaled(
+        label.size() - offset,
+        aspect,
+        transform
+    )
