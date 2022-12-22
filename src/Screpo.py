@@ -17,7 +17,7 @@ if __name__ == "__main__":
     if len(utils.monitors) > 1:
         height += 45
 
-    window = widgets.MainWindow(utils)
+    window = widgets.MainWindow(utils=utils)
     window.setFixedSize(width, height)
     window.move(app.primaryScreen().availableGeometry().bottomRight() - QPoint(width, height))
 

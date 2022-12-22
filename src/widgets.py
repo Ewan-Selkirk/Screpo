@@ -7,7 +7,7 @@ from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
-                               QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox)
+                               QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow)
 
 from src.utils import *
 
@@ -113,9 +113,9 @@ class CategorySpacer(QtWidgets.QSpacerItem):
         super().__init__(0, 24, QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
 
 
-class MainWindow(QWidget):
-    def __init__(self, utils: Utils = ...):
-        super().__init__()
+class MainWindow(QMainWindow):
+    def __init__(self, parent=None, utils: Utils = ...):
+        super(MainWindow, self).__init__(parent)
 
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
@@ -209,16 +209,15 @@ class MainWindow(QWidget):
 
         [self.bottomLayout.addWidget(w) for w in [self.getScreenshotButton, self.settingsButton]]
 
-        self.layout = QVBoxLayout(self)
+        self.widget = QWidget(self)
+        self.layout = QVBoxLayout(self.widget)
         self.layout.addLayout(self.imageAndButtons)
         self.layout.addWidget(self.windowSelector)
         if len(self.utils.monitors) > 1: self.layout.addLayout(self.monitorButtonLayout)
         self.layout.addLayout(self.imageButtonLayout)
         self.layout.addLayout(self.bottomLayout)
 
-    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        if self.settingsWidget:
-            self.settingsWidget.close()
+        self.setCentralWidget(self.widget)
 
     def update_current_screenshot(self):
         self.imageHolder.setPixmap(
@@ -307,7 +306,7 @@ class MainWindow(QWidget):
 
     def open_settings(self):
         if not self.settingsWidget:
-            self.settingsWidget = SettingsWindow(self.utils)
+            self.settingsWidget = SettingsWindow(self)
 
         self.settingsWidget.setFixedSize(self.size().toTuple()[0], self.size().toTuple()[1] // 2)
         self.settingsWidget.move(self.pos())
@@ -316,12 +315,12 @@ class MainWindow(QWidget):
 
 
 
-class SettingsWindow(QWidget):
-    def __init__(self, utils: Utils = ...):
-        super().__init__()
+class SettingsWindow(QMainWindow):
+    def __init__(self, parent):
+        super(SettingsWindow, self).__init__(parent)
 
-        self.utils = utils
-        self.settings = utils.settings
+        self.utils = self.topLevelWidget().parent().utils
+        self.settings = self.utils.settings
 
         self.setWindowTitle("Screpo Settings")
 
@@ -361,11 +360,15 @@ class SettingsWindow(QWidget):
 
         self.footer = QHBoxLayout()
         self.footer.addSpacerItem(QSpacerItem(100, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
-        self.footer.addWidget(QLabel(f"Version {utils.version} ({utils.build}) [{utils.app_ref.platformName()}]"))
+        self.footer.addWidget(QLabel(f"Version {self.utils.version} ({self.utils.build}) "
+                                     f"[{self.utils.app_ref.platformName()}]"))
 
-        self.layout = QVBoxLayout(self)
+        self.widget = QWidget(self)
+        self.layout = QVBoxLayout(self.widget)
         self.layout.addWidget(self.tabs)
         self.layout.addLayout(self.footer)
+
+        self.setCentralWidget(self.widget)
 
     def enable_opencv_features(self, value):
         if value:
