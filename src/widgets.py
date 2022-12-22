@@ -7,7 +7,8 @@ from PySide6 import QtWidgets, QtGui
 from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
-                               QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow)
+                               QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
+                               QInputDialog)
 
 from src.utils import *
 
@@ -50,6 +51,31 @@ class SettingsSpinBox(QHBoxLayout):
         self.layout().addWidget(self.title)
         self.layout().addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
         self.layout().addWidget(self.spinBox)
+
+
+class SettingsLineEdit(QHBoxLayout):
+    def __init__(self, title, utils: Utils = ..., keys: tuple | list = ...):
+        super().__init__()
+
+        self.utils = utils
+        self.tab, self.setting = keys
+
+        self.title = QLabel(title)
+
+        self.line = QLineEdit()
+        self.line.setText(utils.settings.values[self.tab][self.setting] or "")
+        self.line.editingFinished.connect(self.on_line_changed)
+
+        self.layout().addWidget(self.title)
+        self.layout().addSpacerItem(QSpacerItem(100, 0))
+        self.layout().addWidget(self.line)
+
+        [self.layout().setStretch(i, s) for i, s in enumerate([2, 1, 3])]
+
+    def on_line_changed(self):
+        print(f"{self.title.text()}: {self.line.text() if self.line.text() != '' else None}")
+        self.utils.settings.values[self.tab][self.setting] = self.line.text()
+        self.utils.settings.save()
 
 
 class ScreenshotCarouselButton(QRadioButton):
@@ -167,24 +193,43 @@ class MainWindow(QMainWindow):
         self.imageButtonLayout = QHBoxLayout()
         self.copyImageButton = QToolButton(self)
         self.copyImageButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-        self.copyImageButton.setSizePolicy(QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum))
+        self.copyImageButton.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
         self.copyImageButton.setMinimumSize(0, 24)
         self.copyImageButton.setText("Copy Image")
         self.copyImageButton.clicked.connect(self.copy_image)
         self.copyImageButton.setShortcut(QtGui.QKeySequence("Ctrl+C"))
 
-        self.copyImageMenu = QMenu(self)
+        self.copyImageMenu = QMenu(self.copyImageButton)
         self.copyImageMenu.addAction(
             # TODO: Fix this icon for Windows (will likely require compiling a QRC file)
-            QtGui.QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
+            QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
             "Copy for &Discord",
             self.copy_image_for_discord
         )
         self.copyImageButton.setMenu(self.copyImageMenu)
 
-        self.saveImageButton = QPushButton("Save Image")
+        self.saveImageButton = QToolButton()
+        self.saveImageButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.saveImageButton.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
+        self.saveImageButton.setMinimumSize(0, 24)
+        self.saveImageButton.setText("Save Image")
         self.saveImageButton.clicked.connect(self.save_image)
         self.saveImageButton.setShortcut(QtGui.QKeySequence("Ctrl+S"))
+
+        self.saveImageMenu = QMenu(self.saveImageButton)
+
+        self.saveImageMenu.addAction(
+            QIcon(),
+            "Send to Webhook",
+            self.send_image_to_discord
+        )
+        self.saveImageMenu.addAction(
+            QIcon(),
+            "Send to Webhook w/ Message",
+            partial(self.send_image_to_discord, True)
+        )
+
+        self.saveImageButton.setMenu(self.saveImageMenu)
 
         self.imageButtonLayout.addWidget(self.copyImageButton)
         self.imageButtonLayout.addWidget(self.saveImageButton)
@@ -304,6 +349,17 @@ class MainWindow(QMainWindow):
                 self.screenshots[self.currentMonitor].save(filename + filter.split("(")[1][1:-1])
                 print(f"Save: Saved image to {filename + filter.split('(')[1][1:-1]}")
 
+    def send_image_to_discord(self, message: str = None):
+        if self.utils.discordRef:
+            if not message:
+                self.utils.discordRef.send_to_webhook(self.screenshots[self.currentMonitor])
+            else:
+                result, boolean = QInputDialog().getText(self, "Send Image to Webhook with Message",
+                                                         "Message:", QLineEdit.EchoMode.Normal)
+
+                if boolean:
+                    self.utils.discordRef.send_to_webhook_with_message(self.screenshots[self.currentMonitor], result)
+
     def open_settings(self):
         if not self.settingsWidget:
             self.settingsWidget = SettingsWindow(self)
@@ -336,6 +392,10 @@ class SettingsWindow(QMainWindow):
         self.tab_general__enable_opencv.setChecked(self.settings.values["general"]["features"]["enable_opencv"])
         self.tab_general__enable_opencv.clicked.connect(self.enable_opencv_features)
 
+        self.tab_general__enable_discord = SettingsCheckbox("Enable Discord features")
+        self.tab_general__enable_discord.setChecked(self.settings.values["general"]["features"]["enable_discord"])
+        self.tab_general__enable_discord.clicked.connect(self.enable_discord_features)
+
         self.tab_general__performance_header = QLabel("Performance")
 
         self.tab_general__max_history_items = SettingsSpinBox("Max History Items", self.utils,
@@ -346,6 +406,7 @@ class SettingsWindow(QMainWindow):
         self.tab_general.layout().addWidget(self.tab_general__features_header)
         self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(self.tab_general__enable_opencv)
+        self.tab_general.layout().addWidget(self.tab_general__enable_discord)
         self.tab_general.layout().addSpacerItem(CategorySpacer())
         self.tab_general.layout().addWidget(self.tab_general__performance_header)
         self.tab_general.layout().addWidget(HLine())
@@ -354,9 +415,20 @@ class SettingsWindow(QMainWindow):
 
         self.tab_opencv = SettingsTab()
 
+        self.tab_discord = SettingsTab()
+
+        self.tab_discord__username = SettingsLineEdit("Username to use", self.utils, ("discord", "username"))
+        self.tab_discord__webhook = SettingsLineEdit("Webhook URL", self.utils, ("discord", "webhook_url"))
+
+        [self.tab_discord.layout().addLayout(l) for l in [self.tab_discord__username, self.tab_discord__webhook]]
+        self.tab_discord.layout().addStretch(3)
+
         self.tabs.addTab(self.tab_general, "General")
         if self.tab_general__enable_opencv.isChecked():
             self.tabs.insertTab(1, self.tab_opencv, "OpenCV")
+
+        if self.tab_general__enable_discord.isChecked():
+            self.tabs.insertTab(2, self.tab_discord, "Discord")
 
         self.footer = QHBoxLayout()
         self.footer.addSpacerItem(QSpacerItem(100, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
@@ -379,6 +451,17 @@ class SettingsWindow(QMainWindow):
             self.tabs.removeTab(self.tabs.indexOf(self.tab_opencv))
             self.settings.values["general"]["features"]["enable_opencv"] = False
             print("Settings: Disabled OpenCV features")
+
+    def enable_discord_features(self, value):
+        self.settings.values["general"]["features"]["enable_discord"] = value
+
+        if value:
+            self.tabs.insertTab(2, self.tab_discord, "Discord")
+            self.utils.check_refs()
+            print("Settings: Enabled Discord features")
+        else:
+            self.tabs.removeTab(self.tabs.indexOf(self.tab_discord))
+            print("Settings: Disabled Discord features")
 
     def change_spinbox_value(self, keys: tuple | list, value):
         self.settings.values[keys[0]][keys[1]][keys[2]] = value

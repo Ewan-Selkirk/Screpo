@@ -7,7 +7,7 @@ from PySide6 import QtWidgets
 from PySide6.QtGui import QGuiApplication, Qt, QPixmap
 from PySide6.QtCore import QSize
 
-VERSION = "0.0.5"
+VERSION = "0.1.0"
 BUILD = "Dev"
 
 
@@ -22,8 +22,12 @@ class Utils:
 
         self.settings = Settings()
 
+        self.discordRef = None
+
         with mss.mss() as mons:
             self.monitors = mons.monitors[1:]
+
+        self.check_refs()
 
     def capture_monitors(self) -> list[Image]:
         shots = []
@@ -44,6 +48,12 @@ class Utils:
             self.history[0] = shots.copy()
         return shots
 
+    def check_refs(self):
+        if self.settings.values["general"]["features"]["enable_discord"] and not self.discordRef:
+            from src.features.discord import Discord
+            self.discordRef = Discord(self)
+            print("Features: Discord reference created")
+
 
 class Settings:
     def __init__(self):
@@ -59,7 +69,8 @@ class Settings:
         return {
             "general": {
                 "features": {
-                    "enable_opencv": False
+                    "enable_opencv": False,
+                    "enable_discord": False
                 },
                 "performance": {
                     "history_max_items": 8
@@ -67,6 +78,10 @@ class Settings:
             },
             "opencv": {
 
+            },
+            "discord": {
+                "username": "",
+                "webhook_url": ""
             }
         }
 
