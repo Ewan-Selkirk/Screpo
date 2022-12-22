@@ -2,9 +2,9 @@ import math
 import time
 from functools import partial
 
-import mss
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtGui
 from PySide6.QtCore import Qt, QEvent
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
                                QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
@@ -228,6 +228,9 @@ class MainWindow(QMainWindow):
             "Send to Webhook w/ Message",
             partial(self.send_image_to_discord, True)
         )
+
+        for action in self.saveImageMenu.actions():
+            action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
 
         self.saveImageButton.setMenu(self.saveImageMenu)
 
