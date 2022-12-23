@@ -181,9 +181,9 @@ class MainWindow(QMainWindow):
         self.imageAndButtons.addWidget(HLine())
         self.imageAndButtons.addLayout(self.imageSwitcher)
 
-        with mss.mss() as sct:
-            self.windowOptions = {i: [f"{''.join(['Monitor ', str(i + 1) + ': ']) if len(sct.monitors[1:]) > 1 else ''}"
-                                      f"Whole Monitor"] for i in range(len(sct.monitors[1:]))}
+        self.windowOptions = {i: [f"{''.join(['Monitor ', str(i + 1) + ': ']) if len(self.utils.monitors) > 1 else ''}"
+                                  f"Whole Monitor"] for i in range(len(self.utils.monitors))}
+
         self.windowSelector = QComboBox(self)
         self.windowSelector.addItems(self.windowOptions[0])
 
@@ -191,22 +191,10 @@ class MainWindow(QMainWindow):
         self.update_screenshots()
 
         self.imageButtonLayout = QHBoxLayout()
-        self.copyImageButton = QToolButton(self)
-        self.copyImageButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-        self.copyImageButton.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Maximum)
-        self.copyImageButton.setMinimumSize(0, 24)
+        self.copyImageButton = QPushButton(self)
         self.copyImageButton.setText("Copy Image")
         self.copyImageButton.clicked.connect(self.copy_image)
         self.copyImageButton.setShortcut(QtGui.QKeySequence("Ctrl+C"))
-
-        self.copyImageMenu = QMenu(self.copyImageButton)
-        self.copyImageMenu.addAction(
-            # TODO: Fix this icon for Windows (will likely require compiling a QRC file)
-            QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
-            "Copy for &Discord",
-            self.copy_image_for_discord
-        )
-        self.copyImageButton.setMenu(self.copyImageMenu)
 
         self.saveImageButton = QToolButton()
         self.saveImageButton.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
@@ -219,12 +207,12 @@ class MainWindow(QMainWindow):
         self.saveImageMenu = QMenu(self.saveImageButton)
 
         self.saveImageMenu.addAction(
-            QIcon(),
+            QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
             "Send to Webhook",
             self.send_image_to_discord
         )
         self.saveImageMenu.addAction(
-            QIcon(),
+            QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
             "Send to Webhook w/ Message",
             partial(self.send_image_to_discord, True)
         )
@@ -246,16 +234,26 @@ class MainWindow(QMainWindow):
 
         self.update_button_colours()
 
-        self.bottomLayout = QHBoxLayout()
-
         self.getScreenshotButton = QPushButton("Get &New Screenshot", self)
         self.getScreenshotButton.clicked.connect(self.update_screenshots)
+        self.getScreenshotButton.setMinimumSize(0, 56)
+        self.getScreenshotButton.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
 
         self.settingsButton = QPushButton("Open Settings Menu")
         self.settingsButton.clicked.connect(self.open_settings)
         self.settingsButton.setMaximumSize(24, 24)
+        self.settingsButton.setToolTip("Settings")
 
-        [self.bottomLayout.addWidget(w) for w in [self.getScreenshotButton, self.settingsButton]]
+        self.miscButton = QPushButton("Dunno atm")
+        self.miscButton.setMaximumSize(24, 24)
+
+        self.miscBottomButtons = QVBoxLayout()
+        self.miscBottomButtons.addWidget(self.miscButton)
+        self.miscBottomButtons.addWidget(self.settingsButton)
+
+        self.bottomLayout = QHBoxLayout()
+        self.bottomLayout.addWidget(self.getScreenshotButton)
+        self.bottomLayout.addLayout(self.miscBottomButtons)
 
         self.widget = QWidget(self)
         self.layout = QVBoxLayout(self.widget)
@@ -266,6 +264,12 @@ class MainWindow(QMainWindow):
         self.layout.addLayout(self.bottomLayout)
 
         self.setCentralWidget(self.widget)
+
+    def update(self) -> None:
+        super().update()
+
+        for action in self.saveImageMenu.actions():
+            action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
 
     def update_current_screenshot(self):
         self.imageHolder.setPixmap(
@@ -368,7 +372,6 @@ class MainWindow(QMainWindow):
             self.settingsWidget = SettingsWindow(self)
 
         self.settingsWidget.setFixedSize(self.size().toTuple()[0], self.size().toTuple()[1] // 2)
-        self.settingsWidget.move(self.pos())
 
         self.settingsWidget.show()
 
@@ -444,6 +447,10 @@ class SettingsWindow(QMainWindow):
         self.layout.addLayout(self.footer)
 
         self.setCentralWidget(self.widget)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        self.topLevelWidget().parent().update()
+        super().closeEvent(event)
 
     def enable_opencv_features(self, value):
         if value:

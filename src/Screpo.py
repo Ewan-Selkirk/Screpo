@@ -6,7 +6,7 @@ from PySide6.QtCore import QPoint
 import src.widgets as widgets
 from src.utils import Utils
 
-width, height = (550, 675)
+width, height = (550, 710)
 
 
 if __name__ == "__main__":
