@@ -7,7 +7,7 @@ from PySide6 import QtWidgets
 from PySide6.QtGui import QGuiApplication, Qt, QPixmap
 from PySide6.QtCore import QSize
 
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 BUILD = "Dev"
 
 
@@ -81,7 +81,7 @@ class Settings:
             },
             "discord": {
                 "username": "",
-                "webhook_url": ""
+                "webhooks": {}
             }
         }
 
@@ -94,7 +94,15 @@ class Settings:
         if exists(expanduser("~") + r"/.screpo"):
             try:
                 with open(expanduser("~") + r"/.screpo", "r") as f:
+                    from src.features.discord import Webhook
                     self.values = json.load(f)
+
+                    tmp_list = []
+                    for webhook in self.values["discord"]["webhooks"]:
+                        tmp_list.append(Webhook(webhook, self.values["discord"]["webhooks"][webhook]["url"],
+                                                self.values["discord"]["webhooks"][webhook]["username"]))
+
+                    self.values["discord"]["webhooks"] = tmp_list
                     print("Settings: Settings file found and loaded")
                     return True
             except IOError:
@@ -105,7 +113,14 @@ class Settings:
 
     def save(self):
         with open(expanduser("~") + r"/.screpo", "w") as f:
-            json.dump(self.values, f)
+            tmp_list = self.values.copy()
+            hooks = {}
+
+            for webhook in tmp_list["discord"]["webhooks"]:
+                hooks[webhook.name] = {"url": webhook.url, "username": webhook.username}
+
+            tmp_list["discord"]["webhooks"] = hooks
+            json.dump(tmp_list, f)
 
         print(f"Settings: Saved data to {expanduser('~') + r'/.screpo'}")
 

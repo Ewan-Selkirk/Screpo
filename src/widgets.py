@@ -1,3 +1,4 @@
+import enum
 import math
 import time
 from functools import partial
@@ -8,7 +9,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
                                QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
-                               QInputDialog)
+                               QInputDialog, QListWidget, QListWidgetItem, QDialogButtonBox)
 
 from src.utils import *
 
@@ -139,6 +140,186 @@ class CategorySpacer(QtWidgets.QSpacerItem):
         super().__init__(0, 24, QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
 
 
+class ListEditor(QWidget):
+    def __init__(self, utils: Utils = ...):
+        super().__init__()
+        self.values = []
+
+        self.utils = utils
+
+        self.setLayout(QHBoxLayout())
+
+        self.list = QListWidget()
+        self.list.currentItemChanged.connect(self.on_selection_changed)
+        self.list.itemDoubleClicked.connect(self.on_double_clicked)
+        self.list.itemSelectionChanged.connect(self.on_empty_selection)
+
+        for webhook in utils.settings.values["discord"]["webhooks"]:
+            self.list.addItem(webhook.name + f" [{webhook.url}]")
+
+        self.buttonGroup = QVBoxLayout()
+
+        self.addButton = QPushButton("Add Webhook")
+        self.addButton.clicked.connect(self.add_new_webhook)
+
+        self.editButton = QPushButton("Edit Webhook")
+        self.editButton.clicked.connect(self.edit_webhook)
+
+        self.deleteButton = QPushButton("Delete Webhook")
+        self.deleteButton.clicked.connect(self.delete_webhook)
+
+        self.moveUpButton = QPushButton("Move Up")
+        self.moveUpButton.clicked.connect(partial(self.move_webhook, True))
+
+        self.moveDownButton = QPushButton("Move Down")
+        self.moveDownButton.clicked.connect(self.move_webhook)
+
+        self.buttons = [self.addButton, self.editButton, self.deleteButton, self.moveUpButton, self.moveDownButton]
+        [b.setDisabled(True) for b in self.buttons[1:]]
+
+        [self.buttonGroup.addWidget(w) for w in self.buttons]
+
+        self.layout().addWidget(self.list)
+        self.layout().addLayout(self.buttonGroup)
+
+    def add_new_webhook(self):
+        editor = WebhookEditor(self)
+        editor.show()
+
+    def edit_webhook(self):
+        hook = self.utils.settings.values["discord"]["webhooks"][self.list.indexFromItem(
+            self.list.selectedItems()[0]
+        ).row()]
+
+        editor = WebhookEditor(self, hook, self.list.selectedItems()[0])
+        editor.show()
+
+    def delete_webhook(self):
+        confirmation = QMessageBox.information(self, "Delete Webhook", "Are you sure you want to delete the selected"
+                                                                       " url?\nThis cannot be undone.",
+                                               QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+
+        if confirmation == QMessageBox.StandardButton.Ok:
+            del self.utils.settings.values["discord"]["webhooks"][self.list.selectedIndexes()[0].row()]
+            self.list.takeItem(self.list.indexFromItem(self.list.selectedItems()[0]).row())
+
+    def move_webhook(self, up: bool = False):
+        # index = self.list.selectedIndexes()[0].row() + (-1 if up else 1)
+        # old_hook = self.utils.settings.values["discord"]["webhooks"][index]
+        # old_text = self.list.itemAt(0, index).text()
+        #
+        # self.utils.settings.values["discord"]["webhooks"][index] = \
+        #     self.utils.settings.values["discord"]["webhooks"][index + (1 if up else -1)]
+        #
+        # self.utils.settings.values["discord"]["webhooks"][index + (-1 if up else 1)] = old_hook
+        #
+        # self.list.item(index).setText(self.list.item(self.list.selectedIndexes()[0].row()).text())
+        # self.list.item(self.list.selectedIndexes()[0].row()).setText(old_text)
+        #
+        # print(old_text, old_hook)
+
+        print(f"Webhooks: Moved webhook {'up' if up else 'down'} the list")
+
+    def on_selection_changed(self, current: QListWidgetItem, previous: QListWidgetItem):
+        [b.setDisabled(True if current is None else False) for b in self.buttons[1:3]]
+
+        self.buttons[3].setDisabled(False if self.list.indexFromItem(current).row() != 0 else True)
+        self.buttons[4].setDisabled(False if self.list.indexFromItem(current).row() != self.list.count() - 1 else True)
+
+    def on_double_clicked(self, item: QListWidgetItem):
+        self.edit_webhook()
+        print("Double Clicked", item.text())
+
+    def on_empty_selection(self):
+        if len(self.list.selectedItems()) == 0:
+            self.list.setCurrentItem(None)
+            [b.setDisabled(True) for b in self.buttons[1:]]
+
+
+class WebhookEditor(QMainWindow):
+    def __init__(self, parent, webhook=None, listItem: QListWidgetItem = None):
+        super(WebhookEditor, self).__init__(parent)
+
+        self.setWindowTitle("Add New Webhook")
+        self.setWindowFlags(Qt.WindowType.Dialog)
+        self.setBaseSize(parent.size())
+
+        self.webhook = webhook
+        self.listItem = listItem
+
+        self.widget = QWidget()
+        self.layout = QVBoxLayout()
+
+        self.widget.setLayout(self.layout)
+
+        self.layout.addWidget(QLabel("Webhook Name*"))
+
+        self.name = QLineEdit()
+        self.name.setText(webhook.name) if webhook.name else ...
+        self.layout.addWidget(self.name)
+
+        self.layout.addWidget(QLabel("Webhook URL*"))
+
+        self.url = QLineEdit()
+        self.url.setText(webhook.url) if webhook.url else ...
+        self.layout.addWidget(self.url)
+
+        self.layout.addWidget(QLabel("Username to use"))
+
+        self.username = QLineEdit()
+        self.username.setText(webhook.username) if webhook.username else ...
+        self.layout.addWidget(self.username)
+
+        self.layout.addWidget(QLabel("(Leave blank to use the globally set username)"))
+
+        self.dialogButtons = QDialogButtonBox(self.widget)
+        self.dialogButtons.setStandardButtons(QDialogButtonBox.StandardButton.Ok |
+                                              QDialogButtonBox.StandardButton.Cancel)
+
+        self.dialogButtons.accepted.connect(self.on_accepted)
+        self.dialogButtons.rejected.connect(self.on_rejected)
+        self.layout.addWidget(self.dialogButtons)
+
+        self.setCentralWidget(self.widget)
+
+    def on_accepted(self):
+        from src.features.discord import Webhook
+
+        _list = self.topLevelWidget().parent().list
+        _settings = self.topLevelWidget().parent().parent().topLevelWidget().utils.settings
+
+        if not self.check():
+            QMessageBox.critical(self, "Error in fields", "There is an error in one or more fields.\n"
+                                                          "A label with an asterisk has to be filled",
+                                 QMessageBox.StandardButton.Ok)
+
+            return
+
+        if not self.webhook:
+            _list.addItem(self.name.text() + f" [{self.url.text()}]")
+            _settings.values["discord"]["webhooks"].append(Webhook(
+                self.name.text(), self.url.text(), self.username.text())
+            )
+            _settings.save()
+        else:
+            self.listItem.setText(self.name.text() + f" [{self.url.text()}]")
+            _settings.values["discord"]["webhooks"][_list.indexFromItem(self.listItem).row()] = Webhook(
+                self.name.text(), self.url.text(), self.username.text()
+            )
+            _settings.save()
+
+        self.close()
+
+    def on_rejected(self):
+        self.close()
+
+    def check(self) -> bool:
+        if "" in [self.name.text(), self.url.text()]:
+            return False
+
+        return True
+
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None, utils: Utils = ...):
         super(MainWindow, self).__init__(parent)
@@ -208,17 +389,35 @@ class MainWindow(QMainWindow):
 
         self.saveImageMenu.addAction(
             QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
-            "Send to Webhook",
-            self.send_image_to_discord
+            "Send to Webhook"
         )
         self.saveImageMenu.addAction(
             QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
-            "Send to Webhook w/ Message",
-            partial(self.send_image_to_discord, True)
+            "Send to Webhook w/ Message"
         )
 
         for action in self.saveImageMenu.actions():
             action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
+
+        for index, action in enumerate(self.saveImageMenu.actions()):
+            menu = QMenu()
+
+            for webhook in self.utils.settings.values["discord"]["webhooks"]:
+                if index == 0:
+                    menu.addAction(webhook.name, partial(
+                        self.utils.discordRef.send_to_webhook,
+                        webhook,
+                        self.get_current_screenshot
+                    ))
+                elif index == 1:
+                    menu.addAction(webhook.name, partial(
+                        self.utils.discordRef.send_to_webhook_with_message,
+                        self,
+                        webhook,
+                        self.get_current_screenshot
+                    ))
+
+            action.setMenu(menu)
 
         self.saveImageButton.setMenu(self.saveImageMenu)
 
@@ -271,9 +470,18 @@ class MainWindow(QMainWindow):
         for action in self.saveImageMenu.actions():
             action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
 
+        for action in self.saveImageMenu.actions():
+            menu = QMenu()
+
+            for webhook in self.utils.settings.values["discord"]["webhooks"]:
+                menu.addAction(webhook.name,
+                               partial(self.utils.discordRef.send_to_webhook, webhook, self.get_current_screenshot))
+
+            action.setMenu(menu)
+
     def update_current_screenshot(self):
         self.imageHolder.setPixmap(
-            image_to_pixmap(self.screenshots[self.currentMonitor], self.imageHolder)
+            image_to_pixmap(self.get_current_screenshot(), self.imageHolder)
         )
 
     def switch_screenshot(self, mon):
@@ -315,14 +523,14 @@ class MainWindow(QMainWindow):
 
     def copy_image(self):
         if self.clipboard:
-            self.clipboard.setImage(self.screenshots[self.currentMonitor].toqimage())
+            self.clipboard.setImage(self.get_current_screenshot().toqimage())
             print("Copy: Copied image to clipboard")
         else:
             print("Copy: Clipboard reference missing")
 
     def copy_image_for_discord(self):
         if self.clipboard:
-            with self.screenshots[self.currentMonitor] as img:
+            with self.get_current_screenshot() as img:
                 size = math.prod(img.size) / pow(10, 7)
 
                 print(size)
@@ -350,22 +558,22 @@ class MainWindow(QMainWindow):
             if filename == '' and filter == '':
                 pass
             elif filename.endswith((".png", ".jpg")):
-                self.screenshots[self.currentMonitor].save(filename)
+                self.get_current_screenshot().save(filename)
                 print(f"Save: Saved image to {filename}")
             elif filter in ["PNG", "JPEG"]:
-                self.screenshots[self.currentMonitor].save(filename + filter.split("(")[1][1:-1])
+                self.get_current_screenshot().save(filename + filter.split("(")[1][1:-1])
                 print(f"Save: Saved image to {filename + filter.split('(')[1][1:-1]}")
 
-    def send_image_to_discord(self, message: str = None):
-        if self.utils.discordRef:
-            if not message:
-                self.utils.discordRef.send_to_webhook(self.screenshots[self.currentMonitor])
-            else:
-                result, boolean = QInputDialog().getText(self, "Send Image to Webhook with Message",
-                                                         "Message:", QLineEdit.EchoMode.Normal)
-
-                if boolean:
-                    self.utils.discordRef.send_to_webhook_with_message(self.screenshots[self.currentMonitor], result)
+    # def send_image_to_discord(self, message: str = None):
+    #     if self.utils.discordRef:
+    #         if not message:
+    #             self.utils.discordRef.send_to_webhook(self.screenshots[self.currentMonitor])
+    #         else:
+    #             result, boolean = QInputDialog().getText(self, "Send Image to Webhook with Message",
+    #                                                      "Message:", QLineEdit.EchoMode.Normal)
+    #
+    #             if boolean:
+    #                 self.utils.discordRef.send_to_webhook_with_message(self.get_current_screenshot(), result)
 
     def open_settings(self):
         if not self.settingsWidget:
@@ -375,6 +583,8 @@ class MainWindow(QMainWindow):
 
         self.settingsWidget.show()
 
+    def get_current_screenshot(self):
+        return self.screenshots[self.currentMonitor]
 
 
 class SettingsWindow(QMainWindow):
@@ -424,9 +634,16 @@ class SettingsWindow(QMainWindow):
         self.tab_discord = SettingsTab()
 
         self.tab_discord__username = SettingsLineEdit("Username to use", self.utils, ("discord", "username"))
-        self.tab_discord__webhook = SettingsLineEdit("Webhook URL", self.utils, ("discord", "webhook_url"))
+        self.tab_discord__username.title.setToolTip("If no username is provided when creating a url, "
+                                                    "this will be used instead.")
 
-        [self.tab_discord.layout().addLayout(l) for l in [self.tab_discord__username, self.tab_discord__webhook]]
+        # self.tab_discord__webhook = SettingsLineEdit("Webhook URL", self.utils, ("discord", "webhook_url"))
+        self.tab_discord__webhooks = ListEditor(self.utils)
+
+        self.tab_discord.layout().addLayout(self.tab_discord__username)
+        self.tab_discord.layout().addSpacerItem(CategorySpacer())
+        [self.tab_discord.layout().addWidget(w) for w in [QLabel("Webhooks"), HLine(),
+                                                          self.tab_discord__webhooks]]
         self.tab_discord.layout().addStretch(3)
 
         self.tabs.addTab(self.tab_general, "General")

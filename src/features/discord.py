@@ -1,42 +1,47 @@
 from io import BytesIO
 
 import requests
-from PIL import Image
+from PySide6.QtWidgets import QInputDialog, QLineEdit
 
 from src.utils import Utils
 
 
+class Webhook:
+    def __init__(self, name: str, url: str, username: str):
+        self.name = name
+        self.url = url
+        self.username = username
+
+
 class Discord:
     def __init__(self, utils: Utils):
+        self.utils = utils
+
         self.username = utils.settings.values["discord"]["username"]
-        self.webhook = utils.settings.values["discord"]["webhook_url"]
+        self.webhooks = utils.settings.values["discord"]["webhooks"]
 
-        self.data = {
-            "username": self.username
-        }
+        self.data = {}
 
-    def send_to_webhook(self, image: Image):
+    def send_to_webhook(self, webhook: Webhook, image):
+        if webhook.username != "":
+            self.data["username"] = webhook.username
+        elif self.utils.settings.values["discord"]["username"] is not None:
+            self.data["username"] = self.utils.settings.values["discord"]["username"]
+
+        if callable(image):
+            image = image()
+
         with BytesIO() as binary:
             image.save(binary, 'PNG')
             binary.seek(0)
-            requests.post(self.webhook, data=self.data, files={f"Screpo Screenshot.png": binary})
+            requests.post(webhook.url, data=self.data, files={f"Screpo Screenshot.png": binary})
 
-        print("Discord: Image sent to webhook")
+        print("Discord: Image sent to url")
 
-    def send_to_webhook_with_message(self, image: Image, message: str):
-        self.data["content"] = message
+    def send_to_webhook_with_message(self, parent, webhook: Webhook, image):
+        message, boolean = QInputDialog().getText(parent, "Send Image to Webhook with Message",
+                                                  "Message:", QLineEdit.EchoMode.Normal)
 
-        self.send_to_webhook(image)
-
-
-class Webhook:
-    def __init__(self, name: str, webhook: str, username: str):
-        self.__name = name
-        self.__webhook = webhook
-        self.__username = username
-
-    def get_webhook(self) -> str:
-        return self.__webhook
-
-    def get_username(self) -> str:
-        return self.__username
+        if boolean:
+            self.data["content"] = message
+            self.send_to_webhook(webhook, image)
