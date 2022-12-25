@@ -4,7 +4,7 @@ import time
 from functools import partial
 
 from PySide6 import QtGui
-from PySide6.QtCore import Qt, QEvent
+from PySide6.QtCore import Qt, QEvent, QObject
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
@@ -24,13 +24,16 @@ class SettingsCheckbox(QCheckBox):
     def __init__(self, *args):
         super().__init__(*args)
 
+        self.installEventFilter(self)
+
     # Check if the checkbox is clicked and run the save function if so.
     # Not a fan of this method at all, should try and find some other way at some point
     # TODO: Try and find a better way of making every SettingsCheckbox run the same function on click
     # (Could just change it to a confirmation button...)
-    def event(self, e: QEvent) -> bool:
-        super().event(e)
-        if isinstance(e, QtGui.QMouseEvent) and e.type() is e.Type.MouseButtonRelease:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        super().eventFilter(watched, event)
+
+        if event.type() is event.Type.MouseButtonRelease:
             self.topLevelWidget().__getattribute__("utils").settings.save()
         return False
 
@@ -324,6 +327,8 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None, utils: Utils = ...):
         super(MainWindow, self).__init__(parent)
 
+        self.instant: bool = False
+
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
 
         self.clipboard = utils.clipboard
@@ -400,6 +405,9 @@ class MainWindow(QMainWindow):
             action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
 
         for index, action in enumerate(self.saveImageMenu.actions()):
+            if len(self.utils.settings.values["discord"]["webhooks"]) == 0:
+                break
+
             menu = QMenu()
 
             for webhook in self.utils.settings.values["discord"]["webhooks"]:
@@ -464,6 +472,29 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.widget)
 
+        self.installEventFilter(self)
+
+        self.setTabOrder(self.imageSwitcher.widget(), self.windowSelector)
+        self.setTabOrder(self.windowSelector, self.copyImageButton)
+        self.setTabOrder(self.copyImageButton, self.saveImageButton)
+        self.setTabOrder(self.saveImageButton, self.getScreenshotButton)
+        self.setTabOrder(self.getScreenshotButton, self.miscButton)
+        self.setTabOrder(self.miscButton, self.settingsButton)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        super().eventFilter(watched, event)
+        
+        if event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Shift:
+                self.getScreenshotButton.setText("Instantly Get New Screenshot")
+                self.instant = True
+        elif event.type() == QEvent.Type.KeyRelease:
+            if event.key() == Qt.Key.Key_Shift:
+                self.getScreenshotButton.setText("Get &New Screenshot")
+                self.instant = False
+
+        return False
+
     def update(self) -> None:
         super().update()
 
@@ -471,6 +502,9 @@ class MainWindow(QMainWindow):
             action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
 
         for action in self.saveImageMenu.actions():
+            if len(self.utils.settings.values["discord"]["webhooks"]) == 0:
+                break
+
             menu = QMenu()
 
             for webhook in self.utils.settings.values["discord"]["webhooks"]:
@@ -494,9 +528,10 @@ class MainWindow(QMainWindow):
         self.update_button_colours()
 
     def update_screenshots(self):
-        if self.window().windowState() != Qt.WindowState.WindowMinimized:
-            self.window().setWindowState(Qt.WindowState.WindowMinimized)
-            time.sleep(.285)
+        if not self.instant:
+            if self.window().windowState() != Qt.WindowState.WindowMinimized:
+                self.window().setWindowState(Qt.WindowState.WindowMinimized)
+                time.sleep(.285)
 
         self.screenshots = self.utils.capture_monitors()
         self.window().setWindowState(Qt.WindowState.WindowActive)
@@ -652,6 +687,11 @@ class SettingsWindow(QMainWindow):
 
         if self.tab_general__enable_discord.isChecked():
             self.tabs.insertTab(2, self.tab_discord, "Discord")
+
+        if BUILD == "Dev":
+            dev_tab = SettingsTab()
+
+            self.tabs.insertTab(999999, dev_tab, "Dev")
 
         self.footer = QHBoxLayout()
         self.footer.addSpacerItem(QSpacerItem(100, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))

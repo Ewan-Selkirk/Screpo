@@ -7,7 +7,7 @@ from PySide6 import QtWidgets
 from PySide6.QtGui import QGuiApplication, Qt, QPixmap
 from PySide6.QtCore import QSize
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 BUILD = "Dev"
 
 
