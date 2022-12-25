@@ -255,19 +255,19 @@ class WebhookEditor(QMainWindow):
         self.layout.addWidget(QLabel("Webhook Name*"))
 
         self.name = QLineEdit()
-        self.name.setText(webhook.name) if webhook.name else ...
+        self.name.setText(webhook.name) if webhook else ...
         self.layout.addWidget(self.name)
 
         self.layout.addWidget(QLabel("Webhook URL*"))
 
         self.url = QLineEdit()
-        self.url.setText(webhook.url) if webhook.url else ...
+        self.url.setText(webhook.url) if webhook else ...
         self.layout.addWidget(self.url)
 
         self.layout.addWidget(QLabel("Username to use"))
 
         self.username = QLineEdit()
-        self.username.setText(webhook.username) if webhook.username else ...
+        self.username.setText(webhook.username) if webhook else ...
         self.layout.addWidget(self.username)
 
         self.layout.addWidget(QLabel("(Leave blank to use the globally set username)"))
