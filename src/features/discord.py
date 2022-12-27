@@ -45,3 +45,8 @@ class Discord:
         if boolean:
             self.data["content"] = message
             self.send_to_webhook(webhook, image)
+
+        # As the reference to the Discord class is persistent
+        # we need to delete the content or all following images will have
+        # the same content
+        del self.data["content"]

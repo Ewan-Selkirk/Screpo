@@ -4,10 +4,10 @@ from os.path import expanduser, exists
 import mss
 from PIL import Image
 from PySide6 import QtWidgets
-from PySide6.QtGui import QGuiApplication, Qt, QPixmap
+from PySide6.QtGui import QGuiApplication, Qt, QPixmap, QIcon
 from PySide6.QtCore import QSize
 
-VERSION = "0.2.2"
+VERSION = "0.2.3"
 BUILD = "Dev"
 
 
@@ -15,6 +15,9 @@ class Utils:
     def __init__(self, app: QGuiApplication = ...):
         self.version = VERSION
         self.build = BUILD
+
+        self.trayIcon = QIcon(r"../assets/icons/svg/screpo-tray.svg")
+        self.desktopIcon = QIcon(r"../assets/icons/svg/screpo-desktop.svg")
 
         self.app_ref = app
         self.clipboard = app.clipboard()

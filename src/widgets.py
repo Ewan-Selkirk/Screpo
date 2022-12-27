@@ -1,15 +1,12 @@
-import enum
-import math
 import time
 from functools import partial
 
 from PySide6 import QtGui
 from PySide6.QtCore import Qt, QEvent, QObject
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
-                               QStatusBar, QFrame, QMenuBar, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
-                               QInputDialog, QListWidget, QListWidgetItem, QDialogButtonBox)
+                               QFrame, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
+                               QListWidget, QListWidgetItem, QDialogButtonBox)
 
 from src.utils import *
 
@@ -342,10 +339,12 @@ class MainWindow(QMainWindow):
         self.currentMonitor = 0
 
         self.setWindowTitle("Screpo")
+        self.setWindowIcon(self.utils.desktopIcon)
 
-        # TODO: Create an icon and set it as the tray icon here
         self.tray = QSystemTrayIcon(self)
-        # self.tray.setIcon(QtGui.QIcon(r""))
+        self.tray.setToolTip("Screpo")
+        self.tray.setIcon(self.utils.trayIcon)
+        self.tray.activated.connect(self.showNormal)
 
         self.tray_menu = QMenu()
         self.tray_menu.addAction("Capture New Screenshot", self.update_screenshots)
@@ -406,7 +405,8 @@ class MainWindow(QMainWindow):
 
         for index, action in enumerate(self.saveImageMenu.actions()):
             if len(self.utils.settings.values["discord"]["webhooks"]) == 0:
-                break
+                action.setDisabled(True)
+                continue
 
             menu = QMenu()
 
@@ -501,15 +501,27 @@ class MainWindow(QMainWindow):
         for action in self.saveImageMenu.actions():
             action.setDisabled(not self.utils.settings.values["general"]["features"]["enable_discord"])
 
-        for action in self.saveImageMenu.actions():
+        for index, action in enumerate(self.saveImageMenu.actions()):
             if len(self.utils.settings.values["discord"]["webhooks"]) == 0:
-                break
+                action.setDisabled(True)
+                continue
 
             menu = QMenu()
 
             for webhook in self.utils.settings.values["discord"]["webhooks"]:
-                menu.addAction(webhook.name,
-                               partial(self.utils.discordRef.send_to_webhook, webhook, self.get_current_screenshot))
+                if index == 0:
+                    menu.addAction(webhook.name, partial(
+                        self.utils.discordRef.send_to_webhook,
+                        webhook,
+                        self.get_current_screenshot
+                    ))
+                elif index == 1:
+                    menu.addAction(webhook.name, partial(
+                        self.utils.discordRef.send_to_webhook_with_message,
+                        self,
+                        webhook,
+                        self.get_current_screenshot
+                    ))
 
             action.setMenu(menu)
 
@@ -528,18 +540,18 @@ class MainWindow(QMainWindow):
         self.update_button_colours()
 
     def update_screenshots(self):
-        if not self.instant:
-            if self.window().windowState() != Qt.WindowState.WindowMinimized:
-                self.window().setWindowState(Qt.WindowState.WindowMinimized)
-                time.sleep(.285)
+        if not self.instant or not self.windowState() & Qt.WindowState.WindowMinimized:
+            self.window().showMinimized()
+            time.sleep(.285)
 
         self.screenshots = self.utils.capture_monitors()
-        self.window().setWindowState(Qt.WindowState.WindowActive)
 
         self.update_current_screenshot()
 
         self.update_button_colours()
         self.imageSwitcher.add_new_button(self.utils.settings.values["general"]["performance"]["history_max_items"])
+
+        self.showNormal()
 
     def goto_in_history(self, pos):
         self.screenshots = self.utils.history[pos].copy()
@@ -563,25 +575,6 @@ class MainWindow(QMainWindow):
         else:
             print("Copy: Clipboard reference missing")
 
-    def copy_image_for_discord(self):
-        if self.clipboard:
-            with self.get_current_screenshot() as img:
-                size = math.prod(img.size) / pow(10, 7)
-
-                print(size)
-
-                if size < 7.8:
-                    self.copy_image()
-                else:
-                    for i in range(99, 0, -1):
-                        resize = img.resize(tuple(v - (v // i) for v in img))
-                        if math.prod(resize.size) / pow(10, 7) < 7.8:
-                            self.clipboard.setImage(resize.toqimage())
-                            print(f"Copy: Copied image to clipboard at a reduction of {100 - i}%")
-                            break
-        else:
-            print("Copy: Clipboard reference missing")
-
     def save_image(self):
         filename, filter = QFileDialog.getSaveFileName(
             self,
@@ -598,17 +591,6 @@ class MainWindow(QMainWindow):
             elif filter in ["PNG", "JPEG"]:
                 self.get_current_screenshot().save(filename + filter.split("(")[1][1:-1])
                 print(f"Save: Saved image to {filename + filter.split('(')[1][1:-1]}")
-
-    # def send_image_to_discord(self, message: str = None):
-    #     if self.utils.discordRef:
-    #         if not message:
-    #             self.utils.discordRef.send_to_webhook(self.screenshots[self.currentMonitor])
-    #         else:
-    #             result, boolean = QInputDialog().getText(self, "Send Image to Webhook with Message",
-    #                                                      "Message:", QLineEdit.EchoMode.Normal)
-    #
-    #             if boolean:
-    #                 self.utils.discordRef.send_to_webhook_with_message(self.get_current_screenshot(), result)
 
     def open_settings(self):
         if not self.settingsWidget:
