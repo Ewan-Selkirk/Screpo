@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="icons">
+    <file alias="discord-white">../assets/icons/svg/discord-mark-white.svg</file>
+    <file alias="screpo-desktop">../assets/icons/svg/screpo-desktop.svg</file>
+    <file alias="screpo-tray">../assets/icons/svg/screpo-tray.svg</file>
+  </qresource>
+</RCC>

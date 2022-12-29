@@ -7,6 +7,9 @@ from PySide6 import QtWidgets
 from PySide6.QtGui import QGuiApplication, Qt, QPixmap, QIcon
 from PySide6.QtCore import QSize
 
+# noinspection PyUnresolvedReferences
+import src.resources
+
 VERSION = "0.2.3"
 BUILD = "Dev"
 
@@ -16,8 +19,8 @@ class Utils:
         self.version = VERSION
         self.build = BUILD
 
-        self.trayIcon = QIcon(r"../assets/icons/svg/screpo-tray.svg")
-        self.desktopIcon = QIcon(r"../assets/icons/svg/screpo-desktop.svg")
+        self.trayIcon = QIcon(":/icons/screpo-tray")
+        self.desktopIcon = QIcon(":/icons/screpo-desktop")
 
         self.app_ref = app
         self.clipboard = app.clipboard()
