@@ -10,7 +10,7 @@ from PySide6.QtCore import QSize
 # noinspection PyUnresolvedReferences
 import src.resources
 
-VERSION = "0.2.3"
+VERSION = "0.2.4"
 BUILD = "Dev"
 
 

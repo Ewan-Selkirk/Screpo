@@ -39,8 +39,7 @@ class Discord:
         print("Discord: Image sent to url")
 
     def send_to_webhook_with_message(self, parent, webhook: Webhook, image):
-        message, boolean = QInputDialog().getText(parent, "Send Image to Webhook with Message",
-                                                  "Message:", QLineEdit.EchoMode.Normal)
+        message, boolean = QInputDialog().getMultiLineText(parent, "Send Image to Webhook with Message", "Message:")
 
         if boolean:
             self.data["content"] = message
