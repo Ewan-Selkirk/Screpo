@@ -5,8 +5,8 @@ from PySide6 import QtGui
 from PySide6.QtCore import Qt, QEvent, QObject
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
-                               QFrame, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
-                               QListWidget, QListWidgetItem, QDialogButtonBox)
+                               QFrame, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow, QListWidget,
+                               QListWidgetItem, QDialogButtonBox)
 
 from src.utils import *
 
@@ -334,6 +334,7 @@ class MainWindow(QMainWindow):
         self.settingsObj = self.utils.settings
 
         self.settingsWidget = None
+        self.editorWidget = None
 
         self.screenshots = []
         self.currentMonitor = 0
@@ -358,6 +359,8 @@ class MainWindow(QMainWindow):
 
         self.imageHolder = QLabel(self)
         self.imageHolder.setFixedSize(525, 525)
+        self.imageHolder.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        self.imageHolder.addAction("Open in Editor", self.open_editor)
 
         self.imageSwitcher = ScreenshotCarouselGroup()
 
@@ -602,6 +605,14 @@ class MainWindow(QMainWindow):
 
     def get_current_screenshot(self):
         return self.screenshots[self.currentMonitor]
+
+    def open_editor(self):
+        from src.features.editor import EditorWindow
+
+        if not self.editorWidget:
+            self.editorWidget = EditorWindow(self, image=self.screenshots[self.currentMonitor], utils=self.utils)
+
+        self.editorWidget.show()
 
 
 class SettingsWindow(QMainWindow):
