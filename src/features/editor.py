@@ -2,8 +2,8 @@ import enum
 
 import numpy as np
 from PIL import Image
-from PySide6.QtCore import QObject, QEvent
-from PySide6.QtGui import QIcon, QPalette, QPixmap, QCloseEvent
+from PySide6.QtCore import QObject, QEvent, Slot
+from PySide6.QtGui import QIcon, QPalette, QPixmap, QCloseEvent, QShortcut, QKeySequence
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QSizePolicy, QPushButton, QInputDialog, \
     QStatusBar, QHBoxLayout, QScrollArea, QMenuBar
 
@@ -90,6 +90,7 @@ class EditorWindow(QMainWindow):
         self.currentLayer = 0
         self.currentTool: Tools = Tools.SELECTION
         self.layers = []
+        self.scaleFactor = 1.0
 
         self.utils = utils or parent.__getattribute__("utils")
         self.image = image
@@ -114,6 +115,7 @@ class EditorWindow(QMainWindow):
         self.content__image.setPixmap(QPixmap.fromImage(self.image.toqimage()))
         self.content__image.setBackgroundRole(QPalette.ColorRole.Base)
         self.content__image.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
+        self.content__image.setScaledContents(True)
 
         self.content__imageArea = QScrollArea()
         self.content__imageArea.setBackgroundRole(QPalette.ColorRole.Dark)
@@ -173,12 +175,39 @@ class EditorWindow(QMainWindow):
 
         view_menu = self.menuBar.addMenu("&View")
 
+        zoom_in = view_menu.addAction("Zoom In", self._zoom_in)
+        zoom_in.setShortcut("Ctrl+=")
+
+        zoom_out = view_menu.addAction("Zoom Out", self._zoom_out)
+        zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
+
     def _add_new_layer(self):
         self.layers.append(np.zeros(self.image.size))
         self.layerItems.addWidget(LayerItem(len(self.layers)))
+
+    @Slot()
+    def _zoom_in(self):
+        self._scale_image(1.2)
+
+    @Slot()
+    def _zoom_out(self):
+        self._scale_image(0.8)
+
+    def _scale_image(self, factor):
+        self.scaleFactor *= factor
+
+        new_size = self.scaleFactor * self.content__image.pixmap().size()
+        self.content__image.resize(new_size)
+
+        self._adjust_scrollbar(self.content__imageArea.horizontalScrollBar(), factor)
+        self._adjust_scrollbar(self.content__imageArea.verticalScrollBar(), factor)
+
+    @staticmethod
+    def _adjust_scrollbar(scroll, factor):
+        pos = int(factor * scroll.value() + ((factor - 1) * scroll.pageStep() / 2))
+        scroll.setValue(pos)
 
     @staticmethod
     def make_tool_buttons():
         for t in Tools:
             yield ToolButton(t)
-
