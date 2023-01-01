@@ -4,13 +4,14 @@ import numpy as np
 from PIL import Image
 from PySide6.QtCore import QObject, QEvent, Slot
 from PySide6.QtGui import QIcon, QPalette, QPixmap, QCloseEvent, QShortcut, QKeySequence
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QSizePolicy, QPushButton, QInputDialog, \
-    QStatusBar, QHBoxLayout, QScrollArea, QMenuBar
+from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QLabel, QSizePolicy, QPushButton, QInputDialog,
+                               QStatusBar, QHBoxLayout, QScrollArea, QMenuBar, QGroupBox)
 
 from src.utils import Utils
 
 
 class Tools(enum.Enum):
+    MOVE = -1
     SELECTION = 0
     BRUSH = 1
     SHAPE = 2
@@ -36,21 +37,43 @@ class ToolButton(QPushButton):
     def on_clicked(self):
         editor = self.topLevelWidget()
 
-        print(f"Editor: Changing tool from {editor.currentTool} to {self.tool}")
+        if editor.currentTool is not self.tool:
+            print(f"Editor: Changing tool from {editor.currentTool} to {self.tool}")
 
-        editor.statusBar.showMessage(f"Changed tool to {self.tool}")
-        editor.currentTool = self.tool
+            editor.statusBar.showMessage(f"Changed tool to {self.tool}")
+            editor.currentTool = self.tool
+
+
+class LayerGroup(QGroupBox):
+    def __init__(self, parent=None):
+        super(LayerGroup, self).__init__(parent)
+
+        self.setLayout(QVBoxLayout())
+
+        self.imageLayers: list[Image] = parent.layers
+        self.layerItems: list[LayerItem] = []
+
+    def make_new_layer(self, index):
+        self.layerItems.append(LayerItem(self.imageLayers, index))
+
+        [self.layout().addWidget(w) for w in self.layerItems]
 
 
 class LayerItem(QWidget):
-    def __init__(self, index):
+    def __init__(self, layers, index):
         super().__init__()
+
+        self.setStyleSheet("LayerItem { border-style: solid; border-width: 5px; border-color: rgb(253, 142, 53); }")
+
+        self.layers = layers
+        self.index = index
 
         self.layout = QVBoxLayout()
 
         self.name = QLabel(f"Layer {index}")
 
         self.thumbnail = QLabel()
+        self.thumbnail.setPixmap(QPixmap(self.make_thumbnail().toqimage()))
 
         self.layout.addWidget(self.name)
         self.layout.addWidget(self.thumbnail)
@@ -77,6 +100,18 @@ class LayerItem(QWidget):
         if ok:
             self.name.setText(text)
 
+    def make_thumbnail(self) -> Image:
+        size = 128, 128
+        thumbnail = self.layers[self.index - 1].copy()
+
+        if type(thumbnail) is Image.Image:
+            thumbnail.thumbnail(size)
+        elif type(thumbnail) is np.ndarray:
+            thumbnail = Image.fromarray(thumbnail, mode="RGBA")
+            thumbnail.thumbnail(size)
+
+        return thumbnail
+
 
 class EditorWindow(QMainWindow):
     def __init__(self, parent=None, image: Image = None, utils: Utils = None):
@@ -88,7 +123,7 @@ class EditorWindow(QMainWindow):
         self.parent = parent
 
         self.currentLayer = 0
-        self.currentTool: Tools = Tools.SELECTION
+        self.currentTool: Tools = Tools.MOVE
         self.layers = []
         self.scaleFactor = 1.0
 
@@ -96,7 +131,7 @@ class EditorWindow(QMainWindow):
         self.image = image
 
         self.canvasSize = image.size
-        self.layers.append(image.getbands())
+        self.layers.append(image)
 
         self.widget = QWidget()
         self.layout = QVBoxLayout()
@@ -125,11 +160,10 @@ class EditorWindow(QMainWindow):
 
         self.layerScrollBox = QScrollArea()
 
-        self.layersWidget = QWidget()
+        self.layersWidget = LayerGroup(self)
         self.layerItems = QVBoxLayout()
-        self.layersWidget.setLayout(self.layerItems)
 
-        self.layerItems.addWidget(LayerItem(1))
+        self.layersWidget.make_new_layer(1)
 
         self.layerScrollBox.setWidget(self.layersWidget)
         self.layerScrollBox.setMaximumWidth(250)
@@ -149,7 +183,7 @@ class EditorWindow(QMainWindow):
         self.content.addWidget(self.content__imageArea)
         self.content.addLayout(self.content__layers)
 
-        [self.content.setStretch(i, s) for i, s in enumerate([1, 9, 2])]
+        [self.content.setStretch(i, s) for i, s in enumerate([1, 14, 3])]
 
         self.statusBar = QStatusBar()
 
@@ -182,8 +216,8 @@ class EditorWindow(QMainWindow):
         zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
 
     def _add_new_layer(self):
-        self.layers.append(np.zeros(self.image.size))
-        self.layerItems.addWidget(LayerItem(len(self.layers)))
+        self.layers.append(np.zeros(self.canvasSize))
+        self.layersWidget.make_new_layer(len(self.layers))
 
     @Slot()
     def _zoom_in(self):
