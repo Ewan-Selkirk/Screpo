@@ -204,21 +204,21 @@ class ListEditor(QWidget):
             self.list.takeItem(self.list.indexFromItem(self.list.selectedItems()[0]).row())
 
     def move_webhook(self, up: bool = False):
-        # index = self.list.selectedIndexes()[0].row() + (-1 if up else 1)
-        # old_hook = self.utils.settings.values["discord"]["webhooks"][index]
-        # old_text = self.list.itemAt(0, index).text()
-        #
-        # self.utils.settings.values["discord"]["webhooks"][index] = \
-        #     self.utils.settings.values["discord"]["webhooks"][index + (1 if up else -1)]
-        #
-        # self.utils.settings.values["discord"]["webhooks"][index + (-1 if up else 1)] = old_hook
-        #
-        # self.list.item(index).setText(self.list.item(self.list.selectedIndexes()[0].row()).text())
-        # self.list.item(self.list.selectedIndexes()[0].row()).setText(old_text)
-        #
-        # print(old_text, old_hook)
+        hooks = self.utils.settings.values["discord"]["webhooks"]
+        index = self.list.selectedIndexes()[0].row()
+
+        old_hook = hooks[index]
+        old_text = self.list.item(index).text()
+
+        hooks[index] = hooks[index + (-1 if up else 1)]
+        self.list.item(index).setText(self.list.item(index + (-1 if up else 1)).text())
+
+        hooks[index + (-1 if up else 1)] = old_hook
+        self.list.item(index + (-1 if up else 1)).setText(old_text)
 
         print(f"Webhooks: Moved webhook {'up' if up else 'down'} the list")
+
+        self.utils.settings.save()
 
     def on_selection_changed(self, current: QListWidgetItem, previous: QListWidgetItem):
         [b.setDisabled(True if current is None else False) for b in self.buttons[1:3]]
