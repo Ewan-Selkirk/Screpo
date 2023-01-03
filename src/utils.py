@@ -10,7 +10,7 @@ from PySide6.QtCore import QSize
 # noinspection PyUnresolvedReferences
 import src.resources
 
-VERSION = "0.2.5"
+VERSION = "0.2.6"
 BUILD = "Dev"
 
 
@@ -100,15 +100,9 @@ class Settings:
         if exists(expanduser("~") + r"/.screpo"):
             try:
                 with open(expanduser("~") + r"/.screpo", "r") as f:
-                    from src.features.discord import Webhook
                     self.values = json.load(f)
+                    self.__convert_webhooks()
 
-                    tmp_list = []
-                    for webhook in self.values["discord"]["webhooks"]:
-                        tmp_list.append(Webhook(webhook, self.values["discord"]["webhooks"][webhook]["url"],
-                                                self.values["discord"]["webhooks"][webhook]["username"]))
-
-                    self.values["discord"]["webhooks"] = tmp_list
                     print("Settings: Settings file found and loaded")
                     return True
             except IOError:
@@ -128,6 +122,9 @@ class Settings:
             tmp_list["discord"]["webhooks"] = hooks
             json.dump(tmp_list, f)
 
+        # Saving for some reason turns the webhook objects into dicts (despite using an extra variable...)
+        # so we need to turn them back into Webhook objects
+        self.__convert_webhooks()
         print(f"Settings: Saved data to {expanduser('~') + r'/.screpo'}")
 
     def check(self):
@@ -146,6 +143,16 @@ class Settings:
 
             self.save()
             print("Settings: Successfully mitigated new settings over to old save file")
+
+    def __convert_webhooks(self):
+        from src.features.discord import Webhook
+
+        tmp_list = []
+        for webhook in self.values["discord"]["webhooks"]:
+            tmp_list.append(Webhook(webhook, self.values["discord"]["webhooks"][webhook]["url"],
+                                    self.values["discord"]["webhooks"][webhook]["username"]))
+
+        self.values["discord"]["webhooks"] = tmp_list
 
 
 # Stolen from Example 2 on GeeksForGeeks
