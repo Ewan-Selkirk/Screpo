@@ -1,4 +1,5 @@
 import json
+import os
 from os.path import expanduser, exists
 
 import mss
@@ -8,7 +9,7 @@ from PySide6.QtGui import QGuiApplication, Qt, QPixmap, QIcon
 from PySide6.QtCore import QSize
 
 # noinspection PyUnresolvedReferences
-import src.resources
+import resources
 
 VERSION = "0.2.6"
 BUILD = "Dev"
@@ -56,7 +57,7 @@ class Utils:
 
     def check_refs(self):
         if self.settings.values["general"]["features"]["enable_discord"] and not self.discordRef:
-            from src.features.discord import Discord
+            from features.discord import Discord
             self.discordRef = Discord(self)
             print("Features: Discord reference created")
 
@@ -131,21 +132,19 @@ class Settings:
         # This will cause issues say if a setting is removed while another is added
         # TODO: Switch from using the length as the condition
         if nested_dict_len(self.values) < nested_dict_len(self.get_default_settings()):
-            self.values.update({k: v for k, v in self.get_default_settings().items() if k not in self.values.keys()})
+            # Backup the old config just in case
+            os.rename(expanduser("~") + r"/.screpo", expanduser("~") + r"/.screpo.bak")
+            temp_config = self.get_default_settings().copy()
 
-            for k, v in self.get_default_settings().items():
-                self.values[k].update({nk: nv for nk, nv in self.get_default_settings()[k].items()
-                                       if nk not in self.values[k].keys()})
-                for k2, v2 in self.get_default_settings()[k].items():
-                    if isinstance(v2, dict):
-                        self.values[k][k2].update({nk: nv for nk, nv in self.get_default_settings()[k][k2].items()
-                                                   if nk not in self.values[k][k2].keys()})
+            migrate_config(self.values, temp_config)
+
+            self.values = temp_config
 
             self.save()
             print("Settings: Successfully mitigated new settings over to old save file")
 
     def __convert_webhooks(self):
-        from src.features.discord import Webhook
+        from features.discord import Webhook
 
         tmp_list = []
         for webhook in self.values["discord"]["webhooks"]:
@@ -163,6 +162,15 @@ def nested_dict_len(d):
         if isinstance(value, dict):
             length += nested_dict_len(value)
     return length
+
+
+def migrate_config(old: dict, new: dict) -> None:
+    for k, v in old.items():
+        if isinstance(v, dict):
+            migrate_config(v, new[k])
+        else:
+            if k in new:
+                new[k] = v
 
 
 def image_to_pixmap(image: Image, label: QtWidgets.QLabel, offset: QSize = QSize(0, 0),

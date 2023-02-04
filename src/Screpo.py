@@ -3,8 +3,8 @@ import sys
 from PySide6 import QtWidgets
 from PySide6.QtCore import QPoint
 
-import src.widgets as widgets
-from src.utils import Utils
+import widgets as widgets
+from utils import Utils
 
 width, height = (550, 710)
 

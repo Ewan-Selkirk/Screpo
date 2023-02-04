@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButto
                                QFrame, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
                                QListWidget, QListWidgetItem, QDialogButtonBox)
 
-from src.utils import *
+from utils import *
 
 
 class SettingsTab(QTabWidget):
@@ -283,7 +283,7 @@ class WebhookEditor(QMainWindow):
         self.setCentralWidget(self.widget)
 
     def on_accepted(self):
-        from src.features.discord import Webhook
+        from features.discord import Webhook
 
         _list = self.topLevelWidget().parent().list
         _settings = self.topLevelWidget().parent().parent().topLevelWidget().utils.settings
@@ -392,11 +392,11 @@ class MainWindow(QMainWindow):
         self.saveImageMenu = QMenu(self.saveImageButton)
 
         self.saveImageMenu.addAction(
-            QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
+            QIcon(":/icons/discord-white"),
             "Send to Webhook"
         )
         self.saveImageMenu.addAction(
-            QIcon(r"../assets/icons/svg/discord-mark-white.svg"),
+            QIcon(r":/icons/discord-white"),
             "Send to Webhook w/ Message"
         )
 
