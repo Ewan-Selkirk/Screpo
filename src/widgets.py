@@ -195,9 +195,14 @@ class ListEditor(QWidget):
         editor.show()
 
     def delete_webhook(self):
-        confirmation = QMessageBox.information(self, "Delete Webhook", "Are you sure you want to delete the selected"
-                                                                       " url?\nThis cannot be undone.",
-                                               QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        confirmation = QMessageBox.information(
+            self,
+            "Delete Webhook",
+            "Are you sure you want to delete the selected webhook?\n"
+            "This cannot be undone.\n"
+            f"Selected Webhook: \"{self.list.selectedItems()[0].text()}\"",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
 
         if confirmation == QMessageBox.StandardButton.Ok:
             del self.utils.settings.values["discord"]["webhooks"][self.list.selectedIndexes()[0].row()]
@@ -244,6 +249,7 @@ class WebhookEditor(QMainWindow):
         self.setWindowFlags(Qt.WindowType.Dialog)
         self.setBaseSize(parent.size())
 
+        self.parent = parent
         self.webhook = webhook
         self.listItem = listItem
 
@@ -285,8 +291,8 @@ class WebhookEditor(QMainWindow):
     def on_accepted(self):
         from features.discord import Webhook
 
-        _list = self.topLevelWidget().parent().list
-        _settings = self.topLevelWidget().parent().parent().topLevelWidget().utils.settings
+        _list = self.parent.list
+        _settings = self.parent.utils.settings
 
         if not self.check():
             QMessageBox.critical(self, "Error in fields", "There is an error in one or more fields.\n"
@@ -608,7 +614,8 @@ class SettingsWindow(QMainWindow):
     def __init__(self, parent):
         super(SettingsWindow, self).__init__(parent)
 
-        self.utils = self.topLevelWidget().parent().utils
+        self.parent = parent
+        self.utils = parent.utils
         self.settings = self.utils.settings
 
         self.setWindowTitle("Screpo Settings")
@@ -688,7 +695,8 @@ class SettingsWindow(QMainWindow):
         self.setCentralWidget(self.widget)
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
-        self.topLevelWidget().parent().update()
+        self.parent.update()
+        self.parent.settingsWidget = None
         super().closeEvent(event)
 
     def enable_opencv_features(self, value):
