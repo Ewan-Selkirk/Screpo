@@ -47,6 +47,7 @@ source venv/bin/activate
 - [ ] Potentially add an editor
 - [ ] Implement themes
 - [ ] Replace the current temporary logo
+- [ ] Detect and grab window locations for screenshotting specific windows
 - [ ] Implement snippets - second long recordings that allow you to scrub through the frames for the right moment (if possible, haven't actually looked in the possibility of that)
 - [ ] Change to using QT UI files instead of hard-coding everything
 
