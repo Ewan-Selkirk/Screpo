@@ -1,14 +1,13 @@
 <img alt="Screpo - A cross-platform screenshot utility made with Python and QT." width="600" src="images/screpo_banner.png"/>
-----------------
 
 Screpo runs on Windows and Linux desktops running X11 (no Wayland support at the moment unfortunately), and *should* work on Intel-based Macs just fine (maybe Apple-Silicon Macs as well, no clue honestly).
 I do not own an Apple device, so I am not able to test them.
 
 Developed with Python 3.9 but should work with any version 3.6+ at minimum
 
-| <img alt="A screenshot of the Screpo user interface running on a Linux desktop." height="500" src="images/screpo_linux.png"/> |                                       |
-|:-----------------------------------------------------------------------------------------------------------------------------:|:-------------------------------------:|
-|                                  Screpo running on a Linux Desktop<br>(Manjaro + KDE Plasma)                                  |  Screpo running on a Windows Desktop  |
+| <img alt="A screenshot of the Screpo user interface running on a Linux desktop." height="500" src="images/screpo_linux.png"/> | <img alt="A screenshot of Screpo running on a Windows 10 desktop." height="450" src="images/screpo_windows.png"/> |
+|:-----------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------------------------------------:|
+|                                  Screpo running on a Linux Desktop<br>(Manjaro + KDE Plasma)                                  |                                        Screpo running on a Windows Desktop                                        |
 
 
 
@@ -23,10 +22,10 @@ Saves a configurable number of screenshots in memory for saving later. <br>
 Quickly send an image to a Discord channel from the app with the use of a webhook url.
 
 ### Build Instructions
-1. Clone the repo
+1. Clone the repo and change directory to the new folder
 2. Create a Python virtual environment
 `python -m venv venv`
-3. Activate the environment
+3. Activate the environment:
 ```
 Windows:
 .\venv\Scripts\Activate.ps1
