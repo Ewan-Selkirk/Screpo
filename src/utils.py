@@ -1,6 +1,8 @@
 import json
 import os
+import sys
 from os.path import expanduser, exists
+from enum import Enum, auto
 
 import mss
 from PIL import Image
@@ -11,8 +13,17 @@ from PySide6.QtCore import QSize
 # noinspection PyUnresolvedReferences
 import resources
 
+
+class BuildType(Enum):
+    DEVELOPMENT = auto()
+    RELEASE = auto()
+
+    def __str__(self):
+        return self.name.title()
+
+
 VERSION = "0.2.7"
-BUILD = "Dev"
+BUILD: BuildType = BuildType.DEVELOPMENT if any(c in sys.argv for c in ["-d", "--dev"]) else BuildType.RELEASE
 
 
 class Utils:

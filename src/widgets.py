@@ -677,7 +677,7 @@ class SettingsWindow(QMainWindow):
         if self.tab_general__enable_discord.isChecked():
             self.tabs.insertTab(2, self.tab_discord, "Discord")
 
-        if BUILD == "Dev":
+        if BUILD == BuildType.DEVELOPMENT:
             dev_tab = SettingsTab()
 
             self.tabs.insertTab(999999, dev_tab, "Dev")
@@ -685,7 +685,7 @@ class SettingsWindow(QMainWindow):
         self.footer = QHBoxLayout()
         self.footer.addSpacerItem(QSpacerItem(100, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed))
         self.footer.addWidget(QLabel(f"Version {self.utils.version} ({self.utils.build}) "
-                                     f"[{self.utils.app_ref.platformName()}]"))
+                                     f"[{self.utils.app_ref.platformName().title()}]"))
 
         self.widget = QWidget(self)
         self.layout = QVBoxLayout(self.widget)
