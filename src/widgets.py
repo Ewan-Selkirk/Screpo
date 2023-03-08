@@ -628,6 +628,8 @@ class SettingsWindow(QMainWindow):
 
         self.tab_general__appearance_header = QLabel("Appearance")
 
+        self.tab_general__themeLayout = QHBoxLayout()
+
         self.tab_general__theme = QComboBox()
         self.tab_general__theme.setToolTip("Themes are stored in the root Screpo folder or the Screpo folder in your user home")
         self.tab_general__theme.addItem("No Theme")
@@ -637,6 +639,22 @@ class SettingsWindow(QMainWindow):
                 self.tab_general__theme.setCurrentIndex(self.utils.themes.index(theme) + 1)
 
         self.tab_general__theme.currentIndexChanged.connect(self.on_theme_changed)
+        self.tab_general__themeLayout.addWidget(self.tab_general__theme)
+
+        if self.settings.values["general"]["appearance"]["current_theme"] is not None \
+                and self.settings.values["general"]["appearance"]["current_theme"].startswith("catppuccin"):
+            self.tab_general__accent = QComboBox()
+            self.tab_general__accent.addItem("No Accent")
+            for theme in self.utils.themes:
+                if theme.filename == self.settings.values["general"]["appearance"]["current_theme"] and \
+                         hasattr(theme, "accents"):
+                    for i, accent in enumerate(theme.accents):
+                        self.tab_general__accent.addItem(accent.title())
+                        if accent == self.settings.values["general"]["appearance"]["current_accent"]:
+                            self.tab_general__accent.setCurrentIndex(i + 1)
+
+            self.tab_general__accent.currentIndexChanged.connect(self.on_accent_changed)
+            self.tab_general__themeLayout.addWidget(self.tab_general__accent)
 
         self.tab_general__features_header = QLabel("Features")
 
@@ -658,7 +676,7 @@ class SettingsWindow(QMainWindow):
         self.tab_general.layout().addWidget(self.tab_general__appearance_header)
         self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(QLabel("Custom Theme"))
-        self.tab_general.layout().addWidget(self.tab_general__theme)
+        self.tab_general.layout().addLayout(self.tab_general__themeLayout)
         self.tab_general.layout().addWidget(self.tab_general__features_header)
         self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(self.tab_general__enable_opencv)
@@ -720,6 +738,20 @@ class SettingsWindow(QMainWindow):
             self.settings.values["general"]["appearance"]["current_theme"] = None
         else:
             self.settings.values["general"]["appearance"]["current_theme"] = self.utils.themes[theme - 1].filename
+
+        self.settings.save()
+
+        QGuiApplication.instance().setStyleSheet(self.utils.generate_stylesheet())
+
+    def on_accent_changed(self, accent):
+        if accent == 0:
+            self.settings.values["general"]["appearance"]["current_accent"] = None
+        else:
+            for theme in self.utils.themes:
+                if theme.filename == self.settings.values["general"]["appearance"]["current_theme"]:
+                    self.settings.values["general"]["appearance"]["current_accent"] \
+                        = list(theme.accents.keys())[accent - 1]
+                    break
 
         self.settings.save()
 

@@ -22,7 +22,7 @@ class BuildType(Enum):
         return self.name.title()
 
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 BUILD: BuildType = BuildType.DEVELOPMENT if any(c in sys.argv for c in ["-d", "--dev"]) else BuildType.RELEASE
 
 OLD_DIR = expanduser("~")
@@ -80,14 +80,19 @@ class Utils:
     def generate_stylesheet(self) -> str:
         theme = next((t for t in self.themes
                       if t == self.settings.values["general"]["appearance"]["current_theme"]), None)
+        accent = None
+
         if not theme:
             return ""
+
+        if self.settings.values["general"]["appearance"]["current_accent"] is not None:
+            accent = theme.accents[self.settings.values["general"]["appearance"]["current_accent"]]
 
         print(f"Settings: Loading custom theme {str(theme)}")
 
         style = "* {\n\t"
         style += f"background-color: {theme.scheme['background'] or '#00FF00'};\n\t"
-        style += f"color: {theme.scheme['font'] or '#00FF00'};\n"
+        style += f"color: {accent if not None or theme.scheme['font'] else '#00FF00'};\n"
 
         style += "}\n\nQPushButton, QTabBar {\n\t"
         style += f"background-color: {theme.scheme['mantle'] or '#00FF00'};\n"
@@ -102,6 +107,8 @@ class Theme:
         self.authors: str = theme["authors"]
 
         self.scheme: dict = theme["scheme"]
+        if "accents" in theme:
+            self.accents: dict = theme["accents"]
 
         self.filename = self.name.lower().replace(" ", "-")
 
@@ -126,7 +133,8 @@ class Settings:
         return {
             "general": {
                 "appearance": {
-                    "current_theme": None
+                    "current_theme": None,
+                    "current_accent": None
                 },
                 "features": {
                     "enable_opencv": False,
