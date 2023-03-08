@@ -1,0 +1,10 @@
+{
+  "name": "Catppuccin Mocha",
+  "authors": ["Catppuccin Org", "Ewan Selkirk <ewan@stick-stack.dev>"],
+
+  "scheme": {
+    "background": "#1e1e2e",
+    "font": "#cdd6f4",
+    "mantle": "#181825"
+  }
+}

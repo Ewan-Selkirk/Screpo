@@ -626,6 +626,18 @@ class SettingsWindow(QMainWindow):
 
         self.tab_general = SettingsTab()
 
+        self.tab_general__appearance_header = QLabel("Appearance")
+
+        self.tab_general__theme = QComboBox()
+        self.tab_general__theme.setToolTip("Themes are stored in the root Screpo folder or the Screpo folder in your user home")
+        self.tab_general__theme.addItem("No Theme")
+        for theme in self.utils.themes:
+            self.tab_general__theme.addItem(str(theme))
+            if theme == self.settings.values["general"]["appearance"]["current_theme"]:
+                self.tab_general__theme.setCurrentIndex(self.utils.themes.index(theme) + 1)
+
+        self.tab_general__theme.currentIndexChanged.connect(self.on_theme_changed)
+
         self.tab_general__features_header = QLabel("Features")
 
         self.tab_general__enable_opencv = SettingsCheckbox("Enable OpenCV features")
@@ -643,6 +655,10 @@ class SettingsWindow(QMainWindow):
         self.tab_general__max_history_items.spinBox.valueChanged.connect(
             partial(self.change_spinbox_value, self.tab_general__max_history_items.keys))
 
+        self.tab_general.layout().addWidget(self.tab_general__appearance_header)
+        self.tab_general.layout().addWidget(HLine())
+        self.tab_general.layout().addWidget(QLabel("Custom Theme"))
+        self.tab_general.layout().addWidget(self.tab_general__theme)
         self.tab_general.layout().addWidget(self.tab_general__features_header)
         self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(self.tab_general__enable_opencv)
@@ -698,6 +714,16 @@ class SettingsWindow(QMainWindow):
         self.parent.update()
         self.parent.settingsWidget = None
         super().closeEvent(event)
+
+    def on_theme_changed(self, theme):
+        if theme == 0:
+            self.settings.values["general"]["appearance"]["current_theme"] = None
+        else:
+            self.settings.values["general"]["appearance"]["current_theme"] = self.utils.themes[theme - 1].filename
+
+        self.settings.save()
+
+        QGuiApplication.instance().setStyleSheet(self.utils.generate_stylesheet())
 
     def enable_opencv_features(self, value):
         if value:

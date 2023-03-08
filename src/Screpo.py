@@ -21,6 +21,8 @@ if __name__ == "__main__":
     window.setFixedSize(width, height)
     window.move(app.primaryScreen().availableGeometry().bottomRight() - QPoint(width, height))
 
+    app.setStyleSheet(utils.generate_stylesheet())
+
     # Account for the taskbar on Windows
     if app.platformName() == "windows":
         window.move(window.pos() - QPoint(0, 32))

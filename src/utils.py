@@ -22,8 +22,12 @@ class BuildType(Enum):
         return self.name.title()
 
 
-VERSION = "0.2.7"
+VERSION = "0.3.0"
 BUILD: BuildType = BuildType.DEVELOPMENT if any(c in sys.argv for c in ["-d", "--dev"]) else BuildType.RELEASE
+
+OLD_DIR = expanduser("~")
+NEW_DIR = OLD_DIR + "/Screpo/"
+FILE = ".screpo"
 
 
 class Utils:
@@ -39,6 +43,7 @@ class Utils:
         self.history = {}
 
         self.settings = Settings()
+        self.themes: list[Theme] = get_all_themes()
 
         self.discordRef = None
 
@@ -72,6 +77,40 @@ class Utils:
             self.discordRef = Discord(self)
             print("Features: Discord reference created")
 
+    def generate_stylesheet(self) -> str:
+        theme = next((t for t in self.themes
+                      if t == self.settings.values["general"]["appearance"]["current_theme"]), None)
+        if not theme:
+            return ""
+
+        print(f"Settings: Loading custom theme {str(theme)}")
+
+        style = "* {\n\t"
+        style += f"background-color: {theme.scheme['background'] or '#00FF00'};\n\t"
+        style += f"color: {theme.scheme['font'] or '#00FF00'};\n"
+
+        style += "}\n\nQPushButton, QTabBar {\n\t"
+        style += f"background-color: {theme.scheme['mantle'] or '#00FF00'};\n"
+        style += "}"
+
+        return style
+
+
+class Theme:
+    def __init__(self, theme: dict):
+        self.name: str = theme["name"]
+        self.authors: str = theme["authors"]
+
+        self.scheme: dict = theme["scheme"]
+
+        self.filename = self.name.lower().replace(" ", "-")
+
+    def __str__(self):
+        return f"{self.name} ({', '.join(self.authors)})"
+
+    def __eq__(self, other):
+        return self.filename == other
+
 
 class Settings:
     def __init__(self):
@@ -86,6 +125,9 @@ class Settings:
     def get_default_settings() -> dict:
         return {
             "general": {
+                "appearance": {
+                    "current_theme": None
+                },
                 "features": {
                     "enable_opencv": False,
                     "enable_discord": False
@@ -109,9 +151,18 @@ class Settings:
         self.save()
 
     def load(self) -> bool:
-        if exists(expanduser("~") + r"/.screpo"):
+        if exists(OLD_DIR + FILE):
+            from shutil import move
+
+            if not exists(NEW_DIR):
+                os.mkdir(NEW_DIR)
+
+            print(f"Settings: Migrating old settings file to new location \n\t({OLD_DIR + FILE} -> {NEW_DIR + FILE})")
+            move(OLD_DIR + FILE, NEW_DIR + FILE)
+
+        if exists(NEW_DIR + FILE):
             try:
-                with open(expanduser("~") + r"/.screpo", "r") as f:
+                with open(NEW_DIR + FILE, "r") as f:
                     self.values = json.load(f)
                     self.__convert_webhooks()
 
@@ -124,7 +175,7 @@ class Settings:
             return False
 
     def save(self):
-        with open(expanduser("~") + r"/.screpo", "w") as f:
+        with open(NEW_DIR + FILE, "w") as f:
             tmp_list = self.values.copy()
             hooks = {}
 
@@ -137,14 +188,14 @@ class Settings:
         # Saving for some reason turns the webhook objects into dicts (despite using an extra variable...)
         # so we need to turn them back into Webhook objects
         self.__convert_webhooks()
-        print(f"Settings: Saved data to {expanduser('~') + r'/.screpo'}")
+        print(f"Settings: Saved data to {NEW_DIR + FILE}")
 
     def check(self):
         # This will cause issues say if a setting is removed while another is added
         # TODO: Switch from using the length as the condition
         if nested_dict_len(self.values) < nested_dict_len(self.get_default_settings()):
             # Backup the old config just in case
-            os.rename(expanduser("~") + r"/.screpo", expanduser("~") + r"/.screpo.bak")
+            os.rename(NEW_DIR + FILE, NEW_DIR + FILE + ".bak")
             temp_config = self.get_default_settings().copy()
 
             migrate_config(self.values, temp_config)
@@ -192,3 +243,20 @@ def image_to_pixmap(image: Image, label: QtWidgets.QLabel, offset: QSize = QSize
         aspect,
         transform
     )
+
+
+def get_all_themes() -> list[Theme]:
+    themes = []
+    existing: set = set()
+
+    for i, t in enumerate(os.listdir(NEW_DIR + "themes/")):
+        with open(NEW_DIR + "themes/" + t) as f:
+            themes.append(Theme(json.load(f)))
+            existing.add(themes[i].filename)
+
+    for t in os.listdir("./themes/"):
+        with open(f"./themes/{t}") as f:
+            if t[:-5] not in existing:
+                themes.append(Theme(json.load(f)))
+
+    return themes
