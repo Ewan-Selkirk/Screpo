@@ -22,10 +22,10 @@ class BuildType(Enum):
         return self.name.title()
 
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 BUILD: BuildType = BuildType.DEVELOPMENT if any(c in sys.argv for c in ["-d", "--dev"]) else BuildType.RELEASE
 
-OLD_DIR = expanduser("~")
+OLD_DIR = expanduser("~") + "/"
 NEW_DIR = OLD_DIR + "/Screpo/"
 FILE = ".screpo"
 
@@ -257,10 +257,11 @@ def get_all_themes() -> list[Theme]:
     themes = []
     existing: set = set()
 
-    for i, t in enumerate(os.listdir(NEW_DIR + "themes/")):
-        with open(NEW_DIR + "themes/" + t) as f:
-            themes.append(Theme(json.load(f)))
-            existing.add(themes[i].filename)
+    if exists(NEW_DIR + "themes/"):
+        for i, t in enumerate(os.listdir(NEW_DIR + "themes/")):
+            with open(NEW_DIR + "themes/" + t) as f:
+                themes.append(Theme(json.load(f)))
+                existing.add(themes[i].filename)
 
     for t in os.listdir("./themes/"):
         with open(f"./themes/{t}") as f:
