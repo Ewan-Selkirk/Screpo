@@ -3,6 +3,7 @@ from functools import partial
 
 from PySide6 import QtGui
 from PySide6.QtCore import Qt, QEvent, QObject
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (QMessageBox, QSizePolicy, QSpacerItem, QPushButton, QVBoxLayout, QHBoxLayout, QLabel,
                                QTabWidget, QWidget, QFileDialog, QToolButton, QMenu, QComboBox, QSystemTrayIcon,
                                QFrame, QRadioButton, QSpinBox, QCheckBox, QLineEdit, QMainWindow,
@@ -628,7 +629,11 @@ class SettingsWindow(QMainWindow):
 
         self.tab_general__appearance_header = QLabel("Appearance")
 
-        self.tab_general__themeLayout = QHBoxLayout()
+        self.tab_general__theme_item = QHBoxLayout()
+        self.tab_general__theme_layout = QVBoxLayout()
+        self.tab_general__theme_header = QLabel("Custom Theme")
+
+        self.tab_general__accent_layout = QVBoxLayout()
 
         self.tab_general__theme = QComboBox()
         self.tab_general__theme.setToolTip("Themes are stored in the root Screpo folder or the Screpo folder in your user home")
@@ -639,22 +644,21 @@ class SettingsWindow(QMainWindow):
                 self.tab_general__theme.setCurrentIndex(self.utils.themes.index(theme) + 1)
 
         self.tab_general__theme.currentIndexChanged.connect(self.on_theme_changed)
-        self.tab_general__themeLayout.addWidget(self.tab_general__theme)
 
-        if self.settings.values["general"]["appearance"]["current_theme"] is not None \
-                and self.settings.values["general"]["appearance"]["current_theme"].startswith("catppuccin"):
-            self.tab_general__accent = QComboBox()
-            self.tab_general__accent.addItem("No Accent")
-            for theme in self.utils.themes:
-                if theme.filename == self.settings.values["general"]["appearance"]["current_theme"] and \
-                         hasattr(theme, "accents"):
-                    for i, accent in enumerate(theme.accents):
-                        self.tab_general__accent.addItem(accent.title())
-                        if accent == self.settings.values["general"]["appearance"]["current_accent"]:
-                            self.tab_general__accent.setCurrentIndex(i + 1)
+        self.tab_general__theme_layout.addWidget(self.tab_general__theme_header)
+        self.tab_general__theme_layout.addWidget(self.tab_general__theme)
 
-            self.tab_general__accent.currentIndexChanged.connect(self.on_accent_changed)
-            self.tab_general__themeLayout.addWidget(self.tab_general__accent)
+        self.tab_general__theme_item.addLayout(self.tab_general__theme_layout)
+        self.tab_general__theme_item.addLayout(self.tab_general__accent_layout)
+
+        self.tab_general__accent_header: QLabel = QLabel("Accent")
+        self.tab_general__accent = QComboBox()
+
+        self.tab_general__accent_layout.addWidget(self.tab_general__accent_header)
+        self.tab_general__accent_layout.addWidget(self.tab_general__accent)
+
+        if self.utils.current_theme is not None:
+            self.toggle_accent_settings(hasattr(self.utils.current_theme, "accents"))
 
         self.tab_general__features_header = QLabel("Features")
 
@@ -675,8 +679,7 @@ class SettingsWindow(QMainWindow):
 
         self.tab_general.layout().addWidget(self.tab_general__appearance_header)
         self.tab_general.layout().addWidget(HLine())
-        self.tab_general.layout().addWidget(QLabel("Custom Theme"))
-        self.tab_general.layout().addLayout(self.tab_general__themeLayout)
+        self.tab_general.layout().addLayout(self.tab_general__theme_item)
         self.tab_general.layout().addWidget(self.tab_general__features_header)
         self.tab_general.layout().addWidget(HLine())
         self.tab_general.layout().addWidget(self.tab_general__enable_opencv)
@@ -736,12 +739,41 @@ class SettingsWindow(QMainWindow):
     def on_theme_changed(self, theme):
         if theme == 0:
             self.settings.values["general"]["appearance"]["current_theme"] = None
+            self.utils.current_theme = None
+
+            self.toggle_accent_settings(False)
+
         else:
             self.settings.values["general"]["appearance"]["current_theme"] = self.utils.themes[theme - 1].filename
+            self.utils.current_theme = self.utils.themes[theme - 1]
+
+            self.toggle_accent_settings(hasattr(self.utils.current_theme, "accents"))
 
         self.settings.save()
 
         QGuiApplication.instance().setStyleSheet(self.utils.generate_stylesheet())
+
+    def toggle_accent_settings(self, should_show):
+        if should_show:
+            self.tab_general__accent.clear()
+
+            if hasattr(self.utils.current_theme, "accents"):
+                self.tab_general__accent.addItem("No Accent")
+                for i, accent in enumerate(self.utils.current_theme.accents):
+                    self.tab_general__accent.addItem(accent.title())
+                    self.tab_general__accent.setItemData(i + 1,
+                                                         QBrush(QColor(self.utils.current_theme.accents[accent])),
+                                                         Qt.ItemDataRole.BackgroundRole)
+                    if accent == self.settings.values["general"]["appearance"]["current_accent"]:
+                        self.tab_general__accent.setCurrentIndex(i + 1)
+
+            self.tab_general__accent.currentIndexChanged.connect(self.on_accent_changed)
+
+            for w in [self.tab_general__accent_header, self.tab_general__accent]:
+                w.setVisible(True)
+        else:
+            for w in [self.tab_general__accent_header, self.tab_general__accent]:
+                w.setVisible(False)
 
     def on_accent_changed(self, accent):
         if accent == 0:

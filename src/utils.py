@@ -22,7 +22,7 @@ class BuildType(Enum):
         return self.name.title()
 
 
-VERSION = "0.3.2"
+VERSION = "0.3.3"
 BUILD: BuildType = BuildType.DEVELOPMENT if any(c in sys.argv for c in ["-d", "--dev"]) else BuildType.RELEASE
 
 OLD_DIR = expanduser("~") + "/"
@@ -43,7 +43,10 @@ class Utils:
         self.history = {}
 
         self.settings = Settings()
+
         self.themes: list[Theme] = get_all_themes()
+        self.current_theme: Theme = next((x for x in self.themes if x.filename ==
+                                          self.settings.values["general"]["appearance"]["current_theme"]), None)
 
         self.discordRef = None
 
@@ -78,24 +81,32 @@ class Utils:
             print("Features: Discord reference created")
 
     def generate_stylesheet(self) -> str:
-        theme = next((t for t in self.themes
-                      if t == self.settings.values["general"]["appearance"]["current_theme"]), None)
-        accent = None
+        theme = self.current_theme
+        try:
+            if hasattr(theme, "accents"):
+                accent = theme.accents[self.settings.values["general"]["appearance"]["current_accent"]]
+            else:
+                raise KeyError
+        except KeyError:
+            accent = None
 
         if not theme:
             return ""
-
-        if self.settings.values["general"]["appearance"]["current_accent"] is not None:
-            accent = theme.accents[self.settings.values["general"]["appearance"]["current_accent"]]
 
         print(f"Settings: Loading custom theme {str(theme)}")
 
         style = "* {\n\t"
         style += f"background-color: {theme.scheme['background'] or '#00FF00'};\n\t"
-        style += f"color: {accent if not None or theme.scheme['font'] else '#00FF00'};\n"
+        style += f"color: {accent if accent else theme.scheme['font'] if not None else '#00FF00'};\n"
 
         style += "}\n\nQPushButton, QTabBar {\n\t"
         style += f"background-color: {theme.scheme['mantle'] or '#00FF00'};\n"
+
+        style += "}\n\nQComboBox:on {\n\t"
+        style += f"color: {theme.scheme['font-selected'] or '#00FF00'};\n"
+
+        style += "}\n\nQComboBox QAbsractItemView {\n\t"
+        style += f"color: {theme.scheme['font']};"
         style += "}"
 
         return style
@@ -254,18 +265,22 @@ def image_to_pixmap(image: Image, label: QtWidgets.QLabel, offset: QSize = QSize
 
 
 def get_all_themes() -> list[Theme]:
-    themes = []
+    themes: list = []
     existing: set = set()
 
     if exists(NEW_DIR + "themes/"):
         for i, t in enumerate(os.listdir(NEW_DIR + "themes/")):
-            with open(NEW_DIR + "themes/" + t) as f:
+            if not t.endswith(".json"):
+                continue
+            with open(NEW_DIR + "themes/" + t, encoding="utf-8") as f:
                 themes.append(Theme(json.load(f)))
                 existing.add(themes[i].filename)
 
     for t in os.listdir("./themes/"):
-        with open(f"./themes/{t}") as f:
-            if t[:-5] not in existing:
+        if not t.endswith(".json"):
+            continue
+        with open(f"./themes/{t}", encoding="utf-8") as f:
+            if t.split('.')[0] not in existing:
                 themes.append(Theme(json.load(f)))
 
     return themes

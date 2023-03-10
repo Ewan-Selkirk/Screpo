@@ -5,6 +5,7 @@
   "scheme": {
     "background": "#1e1e2e",
     "font": "#cdd6f4",
+    "font-selected": "#a6adc8",
     "mantle": "#181825"
   },
 
