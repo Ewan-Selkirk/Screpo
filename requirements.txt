@@ -1,4 +1,4 @@
-certifi==2022.12.7
+certifi>=2023.07.22
 charset-normalizer==2.1.1
 idna==3.4
 mss==7.0.1
@@ -6,6 +6,6 @@ Pillow==9.3.0
 PySide6==6.4.1
 PySide6-Addons==6.4.1
 PySide6-Essentials==6.4.1
-requests~>2.31.0
+requests>=2.31.0
 shiboken6==6.4.1
 urllib3==1.26.13
